@@ -1,6 +1,7 @@
 import json
 import os
 
+import pandas as pd
 import xarray as xr
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -20,7 +21,6 @@ for file in cube_files:
     lat = dataset["lat"].values.tolist()
     lon = dataset["lon"].values.tolist()
     time = dataset["time"].values.astype(str).tolist()
-
     anomaly_data = dataset["anomaly"]
 
     # Create a dictionary to store lat, lon, and images
@@ -32,22 +32,17 @@ for file in cube_files:
 
     # Iterate over the time dimension to extract anomaly images at each time step
     for i, time_step in enumerate(tqdm(time, desc=f"Processing {file}", unit="time_step")):
+        date = pd.Timestamp(time_step).strftime('%Y-%m-%d')
+
         data_values = anomaly_data.isel(time=i).values
         plt.imshow(data_values, cmap="viridis")
         plt.axis("off")
 
-        fig_file_name = f"{bare_file_name}_{time_step}.png"
+        fig_file_name = f"{bare_file_name}_{date}.png"
         plt.savefig(os.path.join(output_directory_path, fig_file_name), format="png", bbox_inches="tight", pad_inches=0)
 
-        # # Save image to buffer and encode as base64
-        # buffer = BytesIO()
-        # plt.savefig(buffer, format="png", bbox_inches="tight", pad_inches=0)
-        # buffer.seek(0)
-        # img_data = base64.b64encode(buffer.read()).decode("utf-8")
-        # buffer.close()
-
         cube_metadata["images"].append({
-            "time": time_step,
+            "time": date,
             "image": fig_file_name
         })
 
