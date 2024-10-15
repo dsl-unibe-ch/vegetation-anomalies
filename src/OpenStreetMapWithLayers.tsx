@@ -1,11 +1,11 @@
 import React, {useEffect, useState} from 'react';
 import {ImageOverlay, MapContainer, Rectangle, TileLayer} from 'react-leaflet';
-import L from 'leaflet';
+import {LatLngBoundsExpression} from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
-interface CubePrediction {
+interface CubeValues {
     lat: number[];
     lon: number[];
     anomaly: number[][][];
@@ -13,36 +13,36 @@ interface CubePrediction {
 }
 
 interface Props {
-    cubePredictions: CubePrediction[];
+    cubeValues: CubeValues[];
 }
 
-const OpenStreetMapWithLayers: React.FC<Props> = ({ cubePredictions }) => {
-    const [timeIndex, setTimeIndex] = useState(0);
+const OpenStreetMapWithLayers: React.FC<Props> = ({ cubeValues }: Props): JSX.Element => {
+    const [timeIndex, setTimeIndex] = useState<number>(0);
     const [mapCenter, setMapCenter] = useState<[number, number]>([0, 0]);
 
-    useEffect(() => {
-        if (cubePredictions.length > 0) {
-            const centerLat = (Math.min(...cubePredictions.map((c) => Math.min(...c.lat))) +
-                    Math.max(...cubePredictions.map((c) => Math.max(...c.lat)))) /
+    useEffect((): void => {
+        if (cubeValues.length > 0) {
+            const centerLat: number = (Math.min(...cubeValues.map((c: CubeValues): number => Math.min(...c.lat))) +
+                    Math.max(...cubeValues.map((c: CubeValues): number => Math.max(...c.lat)))) /
                 2;
-            const centerLon = (Math.min(...cubePredictions.map((c) => Math.min(...c.lon))) +
-                    Math.max(...cubePredictions.map((c) => Math.max(...c.lon)))) /
+            const centerLon: number = (Math.min(...cubeValues.map((c: CubeValues): number => Math.min(...c.lon))) +
+                    Math.max(...cubeValues.map((c: CubeValues): number => Math.max(...c.lon)))) /
                 2;
             setMapCenter([centerLat, centerLon]);
         }
-    }, [cubePredictions]);
+    }, [cubeValues]);
 
-    const createOverlayImage = (data: number[][]) => {
-        const canvas = document.createElement('canvas');
+    const createOverlayImage = (data: number[][]): string => {
+        const canvas: HTMLCanvasElement = document.createElement('canvas');
         canvas.width = data[0].length;
         canvas.height = data.length;
-        const ctx = canvas.getContext('2d');
+        const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
         if (!ctx) return '';
 
-        const imgData = ctx.createImageData(canvas.width, canvas.height);
-        for (let y = 0; y < data.length; y++) {
-            for (let x = 0; x < data[0].length; x++) {
-                const idx = (y * canvas.width + x) * 4;
+        const imgData: ImageData = ctx.createImageData(canvas.width, canvas.height);
+        for (let y: number = 0; y < data.length; y++) {
+            for (let x: number = 0; x < data[0].length; x++) {
+                const idx: number = (y * canvas.width + x) * 4;
                 if (data[y][x] === -2) {
                     imgData.data[idx] = 255;
                     imgData.data[idx + 1] = 0;
@@ -66,39 +66,39 @@ const OpenStreetMapWithLayers: React.FC<Props> = ({ cubePredictions }) => {
         <div>
             <Slider
                 min={0}
-                max={cubePredictions[0]?.time.length - 1 || 0}
+                max={cubeValues[0]?.time.length - 1 || 0}
                 value={timeIndex}
-                onChange={(value) => setTimeIndex(value as number)}
-                marks={cubePredictions[0]?.time.reduce((acc, t, i) => {
+                onChange={(value: number | number[]): void => setTimeIndex(value as number)}
+                marks={cubeValues[0]?.time.reduce((acc: Record<number, string>, t: string, i: number) => {
                     acc[i] = t;
                     return acc;
-                }, {} as Record<number, string>)}
+                }, {})}
             />
-            <MapContainer center={mapCenter} zoom={8} scrollWheelZoom style={{ height: '800px', width: '100%' }}>
+            <MapContainer center={mapCenter} zoom={8} scrollWheelZoom={true} style={{ height: '800px', width: '100%' }}>
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {cubePredictions.map((minicube, index) => {
-                    const minLat = Math.min(...minicube.lat);
-                    const maxLat = Math.max(...minicube.lat);
-                    const minLon = Math.min(...minicube.lon);
-                    const maxLon = Math.max(...minicube.lon);
+                {cubeValues.map((minicube: CubeValues, index: number) => {
+                    const minLat: number = Math.min(...minicube.lat);
+                    const maxLat: number = Math.max(...minicube.lat);
+                    const minLon: number = Math.min(...minicube.lon);
+                    const maxLon: number = Math.max(...minicube.lon);
 
-                    const bounds: L.LatLngBoundsExpression = [
+                    const bounds: LatLngBoundsExpression = [
                         [minLat, minLon],
                         [maxLat, maxLon],
                     ];
 
-                    const dataValues = minicube.anomaly[timeIndex];
-                    dataValues.forEach((row) => {
-                        row.forEach((value, idx) => {
+                    const dataValues: number[][] = minicube.anomaly[timeIndex];
+                    dataValues.forEach((row: number[]) => {
+                        row.forEach((value: number, idx: number) => {
                             if (value === 1 || value === 2) {
                                 row[idx] = 0;
                             }
                         });
                     });
-                    const overlayUrl = createOverlayImage(dataValues);
+                    const overlayUrl: string = createOverlayImage(dataValues);
 
                     return (
                         <React.Fragment key={index}>

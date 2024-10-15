@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
-import OpenStreetMapWithLayers from "./OpenStreetMapWithLayers";
+import MapWithRaster from "./MapWithRaster";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -30,7 +30,8 @@ root.render(
   <React.StrictMode>
     {/*<App />*/}
     {/*<Visualizer />*/}
-    <OpenStreetMapWithLayers cubePredictions={cubePredictions}/>
+    {/*<OpenStreetMapWithLayers cubeValues={cubePredictions}/>*/}
+      <MapWithRaster/>
   </React.StrictMode>
 );
 
