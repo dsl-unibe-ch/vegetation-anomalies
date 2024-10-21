@@ -1,11 +1,17 @@
 import shlex
 import subprocess
+import sys
 
 import netCDF4
 import numpy as np
 
+if len(sys.argv) != 3:
+    print("2 arguments are expected.")
+    exit(1)
+
 # Path to your NetCDF file
-netcdf_file = '../data/cubes_demo/anomalies_2018_47.468318939208984_8.746687889099121.nc'
+netcdf_file = sys.argv[1]
+output_file = sys.argv[2]
 
 # Data variable name
 data_variable = 'anomaly'
@@ -39,7 +45,7 @@ gdal_command = (
     f'-a_srs EPSG:4326 '
     f'-a_ullr {lon_min} {lat_max} {lon_max} {lat_min} '
     f'NETCDF:"{netcdf_file}":{data_variable} '
-    f'../data/cubes_demo/anomalies_2018_47.468318939208984_8.746687889099121.tif'
+    f'"{output_file}"'
 )
 
 # Execute the command
