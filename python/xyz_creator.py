@@ -1,9 +1,15 @@
 import os
 import subprocess
+import warnings
 from datetime import datetime, timedelta
 
-from osgeo import gdal
+import netCDF4 as nc
+import numpy as np
+from osgeo import gdal, gdalconst
 
+gdal.UseExceptions()
+
+warnings.filterwarnings('ignore', category=UserWarning, append=True)
 
 def validate_input_files(input_files):
     valid_files = []
@@ -22,7 +28,7 @@ def validate_input_files(input_files):
                 ds = None
     return valid_files
 
-def merge_tiffs(input_files, output_file):
+def merge_input_files(input_files, output_file):
     if not input_files:
         raise RuntimeError("No valid input files to merge.")
     # Using gdalwarp to handle overlaps effectively
@@ -30,33 +36,23 @@ def merge_tiffs(input_files, output_file):
     try:
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error during merging TIFF files: {e}")
+        print(f"Error during merging input files: {e}")
         raise
 
-# def reproject_to_wgs84(input_file, output_file):
-#     command = ["gdalwarp", "-t_srs", "EPSG:4326", input_file, output_file]
-#     subprocess.run(command, check=True)
-
-def extract_band(input_file, band_number, output_file):
+def extract_band_nc(input_file, band_number, output_file):
     ds = None
     try:
         ds = gdal.Open(input_file)
-        gdal.Translate(output_file, ds, bandList=[band_number])
+        if ds is None:
+            raise RuntimeError(f"Failed to open band {band_number} from {input_file}.")
+        gdal.Translate(output_file, ds, bandList=[band_number], format='VRT', outputType=gdalconst.GDT_Byte, scaleParams=[[-2, 0, -2, 0]])
     finally:
         if ds:
             ds = None
 
-def convert_to_8bit(input_file, output_file):
-    command = ["gdal_translate", "-of", "VRT", "-ot", "Byte", "-scale", input_file, output_file]
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error during converting to 8-bit: {e}")
-        raise
-
 def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     command = [
-        "gdal2tiles.py", "-z", zoom_levels, "-r", "bilinear", "--xyz", "--s_srs", "EPSG:4326", "-w", "none",
+        'gdal2tiles.py', '-z', zoom_levels, '-r', 'bilinear', '--xyz', '--s_srs', 'EPSG:4326', '-w', 'none',
         input_file, output_directory
     ]
     try:
@@ -68,17 +64,17 @@ def generate_xyz_tiles(input_file, output_directory, zoom_levels):
 def rename_and_move_tiles(output_directory, date):
     for root, _, files in os.walk(output_directory):
         for file in files:
-            if file.endswith(".png"):
+            if file.endswith('.png'):
                 old_path = os.path.join(root, file)
                 # Create new directory structure {z}/{x}/{y}/{date}.png
                 relative_path = os.path.relpath(root, output_directory)
                 parts = relative_path.split(os.sep)
-                if len(parts) >= 3:  # Ensure it has {band}/{z}/{x}
-                    band, z, x = parts[-3], parts[-2], parts[-1]
+                if len(parts) >= 3:  # Ensure it has {date}/{z}/{x}
+                    date_str, z, x = parts[-3], parts[-2], parts[-1]
                     y = os.path.splitext(file)[0]
                     new_dir = os.path.join(output_directory, z, x, y)
                     os.makedirs(new_dir, exist_ok=True)
-                    new_path = os.path.join(new_dir, f"{date}.png")
+                    new_path = os.path.join(new_dir, f'{date}.png')
                     os.rename(old_path, new_path)
                 else:
                     print(f"Warning: Unexpected directory structure for {old_path}. Skipping.")
@@ -89,66 +85,68 @@ def remove_aux_files(output_directory):
             if file.endswith(".aux.xml"):
                 os.remove(os.path.join(root, file))
 
+def get_base_date(time_variable):
+    time_units = time_variable.units
+    base_date_str = time_units.split('since ')[1]
+    base_date = datetime.strptime(base_date_str, "%Y-%m-%d %H:%M:%S")
+    return base_date
+
+
 def main():
-    input_files = ["../data/cubes_demo/anomalies_2018_47.468318939208984_8.746687889099121.tif",
-                   "../data/cubes_demo/anomalies_2018_47.468326568603516_8.7136812210083.tif",
-                   "../data/cubes_demo/anomalies_2018_47.491363525390625_8.71367359161377.tif",
-                   "../data/cubes_demo/anomalies_2018_47.491371154785156_8.680665969848633.tif"]
-    merged_file = "../data/cubes_demo/anomalies_2018.tif"
-    zoom_levels = "0-18"
-    output_directory = "../data/cubes_demo_output"
+    input_files = ['../data/cubes_demo/anomalies_2018_47.468318939208984_8.746687889099121.nc',
+                   '../data/cubes_demo/anomalies_2018_47.468326568603516_8.7136812210083.nc',
+                   '../data/cubes_demo/anomalies_2018_47.491363525390625_8.71367359161377.nc',
+                   '../data/cubes_demo/anomalies_2018_47.491371154785156_8.680665969848633.nc']
+    merged_file = '../data/cubes_demo/anomalies_2018.tif'
+    zoom_levels = '0-18'
+    output_directory = '../data/cubes_demo_output'
 
     # Validate input files
     valid_input_files = validate_input_files(input_files)
 
-    # Step 1: Merge TIFF files into a single raster
-    merge_tiffs(valid_input_files, merged_file)
+    if not valid_input_files:
+        raise RuntimeError("No valid input files to process.")
 
-    # Verify the number of bands in the merged file
-    ds = None
-    try:
-        ds = gdal.Open(merged_file)
-        if ds is None:
-            raise RuntimeError("Failed to open merged file.")
-        actual_num_bands = ds.RasterCount
-    finally:
-        if ds:
-            ds = None
+    # Step 1: Get the time variable from the NetCDF file
+    dataset = nc.Dataset(valid_input_files[0], mode='r')
+    time_variable = dataset.variables['time']
+    base_date = get_base_date(time_variable)
+    time_values = time_variable[:]
+    dates = [(base_date + timedelta(days=int(t))).strftime("%Y%m%d") for t in time_values]
+    dataset.close()
 
-    # Generate dates starting from 2018-01-05 with a step of 5 days
-    start_date = datetime(2018, 1, 5)
-    dates = [(start_date + timedelta(days=5 * i)).strftime("%Y%m%d") for i in range(actual_num_bands)]
+    actual_num_bands = len(dates)
 
     # Step 2: Extract each band, convert to 8-bit, and generate XYZ tiles
+    # for band_number, date in tqdm(enumerate(dates, start=1), total=actual_num_bands, desc="Processing bands"):
     for band_number, date in enumerate(dates, start=1):
-        print(f"Processing band {band_number}/{actual_num_bands}.")
+        print(f"Processing band {band_number}/{actual_num_bands}")
+        band_file = f'band_{band_number}.tif'
+        band_output_directory = os.path.join(output_directory, date)
 
-        band_file = f"band_{band_number}.tif"
-        band_8bit_file = f"band_{band_number}_8bit.vrt"
-        band_output_directory = os.path.join(output_directory, str(date))
+        # Extract the band from the merged file
+        extract_band_nc(merged_file, band_number, band_file)
 
-        # Extract the band
-        extract_band(merged_file, band_number, band_file)
-
-        # Convert to 8-bit
-        convert_to_8bit(band_file, band_8bit_file)
-
-        # Generate XYZ tiles
-        generate_xyz_tiles(band_8bit_file, band_output_directory, zoom_levels)
+        # Generate XYZ tiles, only if the band contains actual data
+        ds = gdal.Open(band_file)
+        if ds is not None:
+            band = ds.GetRasterBand(1)
+            if np.any(band.ReadAsArray() != 0):
+                generate_xyz_tiles(band_file, band_output_directory, zoom_levels)
+            else:
+                print(f"Skipping band {band_number} due to lack of valid data.")
+        else:
+            print(f"Skipping band {band_number} due to invalid dataset.")
 
         # Rename and move tiles to follow {z}/{x}/{y}/{date}.png format
         rename_and_move_tiles(band_output_directory, date)
 
         # Cleanup
         os.remove(band_file)
-        os.remove(band_8bit_file)
 
     # Remove auxiliary files and band directories
     remove_aux_files(output_directory)
-    # for band_dir in os.listdir(output_directory):
-    #     band_path = os.path.join(output_directory, band_dir)
-    #     if os.path.isdir(band_path) and band_dir.startswith("band_"):
-    #         shutil.rmtree(band_path)
+
 
 if __name__ == "__main__":
     main()
