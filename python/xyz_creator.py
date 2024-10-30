@@ -3,7 +3,6 @@ import subprocess
 import warnings
 from datetime import datetime, timedelta
 
-import netCDF4 as nc
 import numpy as np
 from osgeo import gdal, gdalconst
 
@@ -31,59 +30,13 @@ def validate_input_files(input_files):
 def merge_input_files(input_files, output_file):
     if not input_files:
         raise RuntimeError("No valid input files to merge.")
-    # # Using gdalwarp to handle overlaps effectively
-    # command = ['gdalwarp', '-overwrite', '-r', 'average', '-of', 'GTiff'] + input_files + [output_file]
-    # try:
-    #     subprocess.run(command, check=True)
-    # except subprocess.CalledProcessError as e:
-    #     print(f"Error during merging input files: {e}")
-    #     raise
-
-    # Using gdal.Warp to handle overlaps effectively, bypassing geotransform issues
-    warp_options = gdal.WarpOptions(format='GTiff', srcNodata=None, dstNodata=None, resampleAlg='average', options=['-overwrite'], srcSRS='EPSG:4326',
-                                    dstSRS='EPSG:4326')
+    # Using gdalwarp to handle overlaps effectively
+    command = ["gdalwarp", "-overwrite", "-r", "average", "-of", "GTiff"] + input_files + [output_file]
     try:
-        gdal.Warp(destNameOrDestDS=output_file, srcDSOrSrcDSTab=input_files, options=warp_options)
-    except RuntimeError as e:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as e:
         print(f"Error during merging input files: {e}")
         raise
-
-# def merge_input_files(input_files, output_file):
-#     if not input_files:
-#         raise RuntimeError("No valid input files to merge.")
-#     # Using gdal.Warp to handle overlaps effectively and manually setting the geotransform
-#     try:
-#         # Open the first dataset to determine dimensions
-#         ds = gdal.Open(input_files[0])
-#         if ds is None:
-#             raise RuntimeError(f"Failed to open {input_files[0]} for geotransform setup.")
-#
-#         # Manually set a default geotransform to avoid issues
-#         geotransform = (0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-#         projection = ds.GetProjection()
-#         x_size = ds.RasterXSize
-#         y_size = ds.RasterYSize
-#         ds = None
-#
-#         # Create an in-memory raster with the specified geotransform
-#         driver = gdal.GetDriverByName("GTiff")
-#         out_ds = driver.Create(output_file, x_size, y_size, len(input_files), gdal.GDT_Float32)
-#         out_ds.SetGeoTransform(geotransform)
-#         out_ds.SetProjection(projection)
-#
-#         # Merge all the input files into the output dataset
-#         for idx, input_file in enumerate(input_files):
-#             src_ds = gdal.Open(input_file)
-#             if src_ds is None:
-#                 print(f"Warning: Unable to open {input_file} during merging. Skipping.")
-#                 continue
-#             gdal.ReprojectImage(src_ds, out_ds, None, None, gdal.GRA_Average)
-#             src_ds = None
-#
-#         out_ds = None
-#     except RuntimeError as e:
-#         print(f"Error during merging input files: {e}")
-#         raise
 
 def extract_band_nc(input_file, band_number, output_file):
     ds = None
@@ -96,6 +49,18 @@ def extract_band_nc(input_file, band_number, output_file):
         if ds:
             ds = None
 
+def convert_band_to_8bit(input_file, band_number, output_file):
+    # Adjust the scale parameters to map data range (-2, 0) to (0, 255)
+    command = [
+        "gdal_translate", "-b", str(band_number), "-of", "GTiff", "-ot", "Byte", "-scale", "-2", "0", "0", "255",
+        "-a_nodata", "0", input_file, output_file
+    ]
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error during 8-bit conversion of band {band_number}: {e}")
+        raise
+
 def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     command = [
         'gdal2tiles.py', '-z', zoom_levels, '-r', 'bilinear', '--xyz', '--s_srs', 'EPSG:4326', '-w', 'none',
@@ -107,11 +72,13 @@ def generate_xyz_tiles(input_file, output_directory, zoom_levels):
         print(f"Error during generating XYZ tiles: {e}")
         raise
 
+
 def rename_and_move_tiles(output_directory, date):
     for root, _, files in os.walk(output_directory):
         for file in files:
             if file.endswith('.png'):
                 old_path = os.path.join(root, file)
+                # Create new directory structure {z}/{x}/{y}/{date}.png
                 relative_path = os.path.relpath(root, output_directory)
                 parts = relative_path.split(os.sep)
                 if len(parts) >= 3:  # Ensure it has {date}/{z}/{x}
@@ -136,57 +103,52 @@ def get_base_date(time_variable):
     base_date = datetime.strptime(base_date_str, "%Y-%m-%d %H:%M:%S")
     return base_date
 
+def get_time_from_tif(input_file):
+    ds = gdal.Open(input_file)
+    if ds is None:
+        raise RuntimeError(f"Failed to open {input_file}.")
+    metadata = ds.GetMetadata()
+    time_values = metadata.get('NETCDF_DIM_time_VALUES', None)
+    if time_values is None:
+        raise RuntimeError("NETCDF_DIM_time_VALUES metadata not found in the TIF file.")
+    base_date_str = metadata.get('time#units', 'days since 1970-01-01 00:00:00')
+    base_date = datetime.strptime(base_date_str, "days since %Y-%m-%d %H:%M:%S")
+    time_values = [int(t) for t in time_values[1:-1].split(',')]
+    dates = [(base_date + timedelta(days=t)).strftime("%Y%m%d") for t in time_values]
+    return dates
 
 def main():
-    input_files = ['../data/cubes_demo/anomalies_2018_47.468318939208984_8.746687889099121.nc',
-                   '../data/cubes_demo/anomalies_2018_47.468326568603516_8.7136812210083.nc',
-                   '../data/cubes_demo/anomalies_2018_47.491363525390625_8.71367359161377.nc',
-                   '../data/cubes_demo/anomalies_2018_47.491371154785156_8.680665969848633.nc']
     merged_file = '../data/cubes_demo/anomalies_2018_1.tif'
     zoom_levels = '0-18'
     output_directory = '../data/cubes_demo_output'
 
-    # Validate input files
-    valid_input_files = validate_input_files(input_files)
-
-    merge_input_files(valid_input_files, merged_file)
-
-    if not valid_input_files:
-        raise RuntimeError("No valid input files to process.")
-
-    # Step 1: Get the time variable from the NetCDF file
-    dataset = nc.Dataset(valid_input_files[0], mode='r')
-    time_variable = dataset.variables['time']
-    base_date = get_base_date(time_variable)
-    time_values = time_variable[:]
-    dates = [(base_date + timedelta(days=int(t))).strftime("%Y%m%d") for t in time_values]
-    dataset.close()
-
+    # Step 1: Get the time variable from the merged TIF file
+    dates = get_time_from_tif(merged_file)
     actual_num_bands = len(dates)
 
     # Step 2: Extract each band, convert to 8-bit, and generate XYZ tiles
-    # for band_number, date in tqdm(enumerate(dates, start=1), total=actual_num_bands, desc="Processing bands"):
     for band_number, date in enumerate(dates, start=1):
         print(f"Processing band {band_number}/{actual_num_bands}")
-        band_file = f'band_{band_number}.tif'
+        band_file = f'../data/cubes_demo/anomalies_2018_1_band_{band_number}_8bit.tif'
         band_output_directory = os.path.join(output_directory, date)
 
-        # Extract the band from the merged file
-        extract_band_nc(merged_file, band_number, band_file)
+        # Convert the band to an 8-bit single-band file
+        convert_band_to_8bit(merged_file, band_number, band_file)
 
-        # Generate XYZ tiles, only if the band contains actual data
+        # Access the band file and generate XYZ tiles if it contains valid data
         ds = gdal.Open(band_file)
         if ds is not None:
             band = ds.GetRasterBand(1)
-            if np.any(band.ReadAsArray() != 0):
+            band_data = band.ReadAsArray()
+            if band_data is not None and np.any(band_data != 0):
                 generate_xyz_tiles(band_file, band_output_directory, zoom_levels)
             else:
-                print(f"Skipping band {band_number} due to lack of valid data.")
+                print(f"Skipping band {band_number} as it contains no valid data (all values are zero).")
         else:
             print(f"Skipping band {band_number} due to invalid dataset.")
 
-        # Rename and move tiles to follow {z}/{x}/{y}/{date}.png format
-        rename_and_move_tiles(band_output_directory, date)
+        # # Rename and move tiles to follow {z}/{x}/{y}/{date}.png format
+        # rename_and_move_tiles(band_output_directory, date)
 
         # Cleanup
         os.remove(band_file)
