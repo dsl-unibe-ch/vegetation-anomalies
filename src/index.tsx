@@ -8,23 +8,23 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
-const cubePredictions = [
-    {
-        lat: [34.5, 34.6],
-        lon: [-117.9, -117.8],
-        anomaly: [
-            [
-                [-2, -1, 0, 1],
-                [-2, 0, 0, 2]
-            ],
-            [
-                [-1, 0, 0, 1],
-                [-2, -1, 2, 1]
-            ]
-        ],
-        time: ['2023-01-01', '2023-01-02']
-    },
-];
+// const cubePredictions = [
+//     {
+//         lat: [34.5, 34.6],
+//         lon: [-117.9, -117.8],
+//         anomaly: [
+//             [
+//                 [-2, -1, 0, 1],
+//                 [-2, 0, 0, 2]
+//             ],
+//             [
+//                 [-1, 0, 0, 1],
+//                 [-2, -1, 2, 1]
+//             ]
+//         ],
+//         time: ['2023-01-01', '2023-01-02']
+//     },
+// ];
 
 root.render(
   <React.StrictMode>

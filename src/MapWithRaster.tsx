@@ -54,7 +54,7 @@ const MapWithRaster = () => {
                 // Layer 3: Anomalies layer
                 map.addSource('anomalies-source', {
                     type: 'raster',
-                    tiles: ['http://localhost:8080/{z}/{x}/{y}/2018-07-04.png'],
+                    tiles: ['http://localhost:8080/20180204/{z}/{x}/{y}.png'],
                     tileSize: 256,
                 });
 
