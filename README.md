@@ -2,6 +2,9 @@
 
 ## Converting NetCDF to TIF
 
+To convert NetCDF files to TIF use the following command. The output files have the same name but the extension is ".tif".
+`python netcdf_to_tif_converter.py <input_files...>`
+
 ## Merging Multiple TIF to One
 
 The following command can be used to merge input_files... into one merged_file. Their format should be TIF. 
