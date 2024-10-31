@@ -50,10 +50,11 @@ def extract_band_nc(input_file, band_number, output_file):
             ds = None
 
 def convert_band_to_8bit(input_file, band_number, output_file):
-    # Adjust the scale parameters to map data range (-2, 0) to (0, 255)
+    # Adjust the scale parameters to map data range [-2, 0] to appropriate values:
+    # 0 should remain 0 and be transparent, -1 and -2 should be different intensities of red
     command = [
-        "gdal_translate", "-b", str(band_number), "-of", "GTiff", "-ot", "Byte", "-scale", "-2", "0", "0", "255",
-        "-a_nodata", "0", input_file, output_file
+        "gdal_translate", "-b", str(band_number), "-of", "GTiff", "-ot", "Byte", "-scale", "0", "-2", "0", "255",
+        "-a_nodata", "0", "-colorinterp", "red", input_file, output_file
     ]
     try:
         subprocess.run(command, check=True)
@@ -71,25 +72,6 @@ def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     except subprocess.CalledProcessError as e:
         print(f"Error during generating XYZ tiles: {e}")
         raise
-
-
-def rename_and_move_tiles(output_directory, date):
-    for root, _, files in os.walk(output_directory):
-        for file in files:
-            if file.endswith('.png'):
-                old_path = os.path.join(root, file)
-                # Create new directory structure {z}/{x}/{y}/{date}.png
-                relative_path = os.path.relpath(root, output_directory)
-                parts = relative_path.split(os.sep)
-                if len(parts) >= 3:  # Ensure it has {date}/{z}/{x}
-                    date_str, z, x = parts[-3], parts[-2], parts[-1]
-                    y = os.path.splitext(file)[0]
-                    new_dir = os.path.join(output_directory, z, x, y)
-                    os.makedirs(new_dir, exist_ok=True)
-                    new_path = os.path.join(new_dir, f'{date}.png')
-                    os.rename(old_path, new_path)
-                else:
-                    print(f"Warning: Unexpected directory structure for {old_path}. Skipping.")
 
 def remove_aux_files(output_directory):
     for root, _, files in os.walk(output_directory):
@@ -146,9 +128,6 @@ def main():
                 print(f"Skipping band {band_number} as it contains no valid data (all values are zero).")
         else:
             print(f"Skipping band {band_number} due to invalid dataset.")
-
-        # # Rename and move tiles to follow {z}/{x}/{y}/{date}.png format
-        # rename_and_move_tiles(band_output_directory, date)
 
         # Cleanup
         os.remove(band_file)
