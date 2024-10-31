@@ -10,16 +10,19 @@ const MapWithRaster = () => {
     const [daysOffset, setDaysOffset] = useState(0);
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
-    const formatDateWithOffset = (baseDate: Date, offsetDays: number): string => {
+    const formatDateWithOffset = (baseDate: Date, offsetDays: number, addHyphens: boolean): string => {
         // Create a date object
-        const date: Date = new Date()
+        const date: Date = new Date(baseDate)
 
         // Add the offset in days
         date.setDate(baseDate.getDate() + offsetDays);
 
-        // Format the date in 'YYYYMMDD' format
-        const formattedDate = date.getFullYear().toString() +
-            (date.getMonth() + 1).toString().padStart(2, '0') +
+        // Separator between years, months and days
+        const separator: string = addHyphens ? '-' : '';
+
+        // Format the date in 'yyyyMMdd' format or 'yyyy-MM-dd'
+        const formattedDate = date.getFullYear().toString() + separator +
+            (date.getMonth()).toString().padStart(2, '0') + separator +
             date.getDate().toString().padStart(2, '0');
 
         return formattedDate;
@@ -34,7 +37,7 @@ const MapWithRaster = () => {
                 zoom: 2,
             });
 
-            const date: string = formatDateWithOffset(new Date(2018, 1, 5), daysOffset);
+            const date: string = formatDateWithOffset(new Date(2018, 1, 5), daysOffset, false);
 
             map.on('load', () => {
                 // Layer 1: OpenStreetMap base raster layer
@@ -142,7 +145,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Days since 2018-01-05: {daysOffset}</label>
+                    <label>Date: {formatDateWithOffset(new Date(2018, 1, 5), daysOffset, true)}</label>
                     <input
                         type="range"
                         min="0"
