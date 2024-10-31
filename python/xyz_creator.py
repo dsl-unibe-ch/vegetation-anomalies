@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import warnings
 from datetime import datetime, timedelta
 
@@ -100,22 +101,27 @@ def get_time_from_tif(input_file):
     return dates
 
 def main():
-    merged_file = '../data/cubes_demo/anomalies_2018_1.tif'
-    zoom_levels = '0-18'
-    output_directory = '../data/cubes_demo_output'
+    if len(sys.argv) < 4:
+        print("Usage: python xyz_creator.py <input_file> <output_directory> <zoom_levels>")
+        print("zoom_levels example: 0-18")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_directory = sys.argv[2]
+    zoom_levels = sys.argv[3]
 
     # Step 1: Get the time variable from the merged TIF file
-    dates = get_time_from_tif(merged_file)
+    dates = get_time_from_tif(input_file)
     actual_num_bands = len(dates)
 
     # Step 2: Extract each band, convert to 8-bit, and generate XYZ tiles
     for band_number, date in enumerate(dates, start=1):
         print(f"Processing band {band_number}/{actual_num_bands}")
-        band_file = f'../data/cubes_demo/anomalies_2018_1_band_{band_number}_8bit.tif'
+        band_file = f'{input_file}_band_{band_number}_8bit.tif'
         band_output_directory = os.path.join(output_directory, date)
 
         # Convert the band to an 8-bit single-band file
-        convert_band_to_8bit(merged_file, band_number, band_file)
+        convert_band_to_8bit(input_file, band_number, band_file)
 
         # Access the band file and generate XYZ tiles if it contains valid data
         ds = gdal.Open(band_file)

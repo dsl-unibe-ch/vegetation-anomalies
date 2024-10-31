@@ -7,6 +7,8 @@ from PIL import Image
 
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
+    blank_image = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
+
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET')
@@ -22,9 +24,8 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
             self.end_headers()
 
             # Create a blank PNG image
-            blank_image = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
             img_bytes = BytesIO()
-            blank_image.save(img_bytes, format='PNG')
+            self.blank_image.save(img_bytes, format='PNG')
             self.wfile.write(img_bytes.getvalue())
         else:
             # If the file exists, serve it as usual
