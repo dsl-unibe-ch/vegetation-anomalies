@@ -51,17 +51,21 @@ def extract_band_nc(input_file, band_number, output_file):
             ds = None
 
 def convert_band_to_8bit(input_file, band_number, output_file):
-    # Adjust the scale parameters to map data range [-2, 0] to appropriate values:
+    # Adjust the scale parameters to map data range (-2, 0) to appropriate values:
     # 0 should remain 0 and be transparent, -1 and -2 should be different intensities of red
-    command = [
-        "gdal_translate", "-b", str(band_number), "-of", "GTiff", "-ot", "Byte", "-scale", "0", "-2", "0", "255",
-        "-a_nodata", "0", "-colorinterp", "red", input_file, output_file
-    ]
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error during 8-bit conversion of band {band_number}: {e}")
-        raise
+    ds = gdal.Open(input_file)
+    if ds is None:
+        raise RuntimeError(f"Failed to open {input_file} for band conversion.")
+    vrt_options = gdal.TranslateOptions(
+        bandList=[band_number],
+        format='GTiff',
+        outputType=gdalconst.GDT_Byte,
+        scaleParams=[[0, -2, 0, 255]],
+        noData=0,
+        # creationOptions=['ALPHA=YES']
+    )
+    gdal.Translate(output_file, ds, options=vrt_options)
+    ds = None
 
 def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     command = [
