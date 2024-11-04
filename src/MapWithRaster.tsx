@@ -22,7 +22,7 @@ const MapWithRaster = () => {
 
         // Format the date in 'yyyyMMdd' format or 'yyyy-MM-dd'
         const formattedDate = date.getFullYear().toString() + separator +
-            (date.getMonth()).toString().padStart(2, '0') + separator +
+            (date.getMonth() + 1).toString().padStart(2, '0') + separator +
             date.getDate().toString().padStart(2, '0');
 
         return formattedDate;
@@ -36,8 +36,6 @@ const MapWithRaster = () => {
                 center: [0, 0],
                 zoom: 2,
             });
-
-            const date: string = formatDateWithOffset(new Date(2018, 1, 5), daysOffset, false);
 
             map.on('load', () => {
                 // Layer 1: OpenStreetMap base raster layer
@@ -73,6 +71,7 @@ const MapWithRaster = () => {
                 });
 
                 // Layer 3: Anomalies layer
+                const date = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
                 map.addSource('anomalies-source', {
                     type: 'raster',
                     tiles: [`http://localhost:8080/${date}/{z}/{x}/{y}.png`],
@@ -96,14 +95,24 @@ const MapWithRaster = () => {
         }
     }, []);
 
-    // Update layer opacity after map load
+    // Update layer opacity and anomalies layer source after map load
     useEffect(() => {
         if (mapRef.current && mapRef.current.isStyleLoaded()) {
             mapRef.current.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
             mapRef.current.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
             mapRef.current.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
+
+            // Update the anomalies layer source to reflect the new date
+            const newDate = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
+            const source = mapRef.current.getSource('anomalies-source');
+            if (source && 'tiles' in source) {
+                (source as maplibreGl.RasterTileSource).tiles = [`http://localhost:8080/${newDate}/{z}/{x}/{y}.png`];
+                mapRef.current.style.sourceCaches['anomalies-source'].clearTiles();
+                mapRef.current.style.sourceCaches['anomalies-source'].update(mapRef.current.transform);
+                mapRef.current.triggerRepaint();
+            }
         }
-    }, [osmOpacity, satelliteOpacity, anomaliesOpacity]);
+    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset]);
 
     return (
         <div>
@@ -145,7 +154,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(new Date(2018, 1, 5), daysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(new Date(2018, 0, 5), daysOffset, true)}</label>
                     <input
                         type="range"
                         min="0"
