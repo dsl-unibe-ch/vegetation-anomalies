@@ -11,20 +11,12 @@ const MapWithRaster = () => {
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
     const formatDateWithOffset = (baseDate: Date, offsetDays: number, addHyphens: boolean): string => {
-        // Create a date object
         const date: Date = new Date(baseDate)
-
-        // Add the offset in days
         date.setDate(baseDate.getDate() + offsetDays);
-
-        // Separator between years, months and days
         const separator: string = addHyphens ? '-' : '';
-
-        // Format the date in 'yyyyMMdd' format or 'yyyy-MM-dd'
         const formattedDate = date.getFullYear().toString() + separator +
             (date.getMonth() + 1).toString().padStart(2, '0') + separator +
             date.getDate().toString().padStart(2, '0');
-
         return formattedDate;
     }
 

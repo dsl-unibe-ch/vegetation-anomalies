@@ -51,21 +51,34 @@ def extract_band_nc(input_file, band_number, output_file):
             ds = None
 
 def convert_band_to_8bit(input_file, band_number, output_file):
-    # Adjust the scale parameters to map data range (-2, 0) to appropriate values:
-    # 0 should remain 0 and be transparent, -1 and -2 should be different intensities of red
+    # Map specific input values to colours: 0 -> transparent, -1 -> dark red, -2 -> light red
     ds = gdal.Open(input_file)
     if ds is None:
         raise RuntimeError(f"Failed to open {input_file} for band conversion.")
-    vrt_options = gdal.TranslateOptions(
-        bandList=[band_number],
-        format='GTiff',
-        outputType=gdalconst.GDT_Byte,
-        scaleParams=[[0, -2, 0, 255]],
-        noData=0,
-        # creationOptions=['ALPHA=YES']
-    )
-    gdal.Translate(output_file, ds, options=vrt_options)
-    ds = None
+    band = ds.GetRasterBand(band_number)
+    band_data = band.ReadAsArray()
+
+    # Create a new 8-bit array with the same shape
+    output_data = np.zeros_like(band_data, dtype=np.uint8)
+
+    # Map -2 to light red, -1 to dark red, and keep 0 as 0 (transparent)
+    output_data[band_data == -2] = 255  # Light red
+    output_data[band_data == -1] = 127  # Dark red
+
+    # Create the output file
+    driver = gdal.GetDriverByName('GTiff')
+    out_ds = driver.Create(output_file, ds.RasterXSize, ds.RasterYSize, 4, gdalconst.GDT_Byte)
+    out_ds.SetGeoTransform(ds.GetGeoTransform())
+    out_ds.SetProjection(ds.GetProjection())
+
+    # Write the red band
+    out_ds.GetRasterBand(1).WriteArray(output_data)
+    out_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+
+    # Set the alpha channel to make 0 values transparent
+    alpha_band = np.where(output_data == 0, np.uint8(0), np.uint8(255)).astype(np.uint8)
+    out_ds.GetRasterBand(4).WriteArray(alpha_band)
+    out_ds.GetRasterBand(4).SetColorInterpretation(gdal.GCI_AlphaBand)
 
 def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     command = [
