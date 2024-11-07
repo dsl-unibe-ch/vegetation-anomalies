@@ -16,3 +16,19 @@ The following command generates tiles from input_file to output_directory with t
 `python xyz_creator.py <input_file> <output_directory> <zoom_levels>`
 
 Where zoom_levels should be in the format: <from>-<to>, where from and to are integers and from <= to. A typical value would be "0-18".
+
+# React App
+
+## Running Locally for Debugging and Testing Purposes
+
+Run the following command.
+`npm run start`
+
+This command will open the web application in the browser.
+
+## Building Production Version
+
+Run the following command.
+`npm run build`
+
+It will deploy all necessary files in the `build` folder. This folder can be copied to the production server.
