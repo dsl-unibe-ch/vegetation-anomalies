@@ -59,3 +59,13 @@ Run the following command.
 `npm run build`
 
 It will deploy all necessary files in the build folder. This folder can be copied to the production server.
+
+
+# TODO
+- Contact the customer to show the demo.
+- We should go in direction of WMTS standard protocol for serving map tiles.
+- One TIF per date.
+- Add documentation what libraries are used for each tool - the tech stack.
+- Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
+- Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
+- Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
