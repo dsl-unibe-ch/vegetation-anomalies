@@ -32,6 +32,14 @@ The following command generates tiles from input_file to output_directory with t
 
 Where zoom_levels should be in the format: <from>-<to>, where from and to are integers and from <= to. A typical value would be "0-18".
 
+## Running Tiles Server
+
+The command to run the server is the following:
+
+`python file_server.py`
+
+The shell input prompt will not be available as long as the server is running. So it is a good idea to run the server in a separate shell. To stop the execution, press Ctrl+C.
+
 # React App
 
 The application assumes, the tiles server is running on `localhost:8080`, so make sure to start the server before starting the web application. 
