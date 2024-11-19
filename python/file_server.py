@@ -7,7 +7,7 @@ from PIL import Image
 
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
-    blank_image = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
+    blank_image = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
 
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
