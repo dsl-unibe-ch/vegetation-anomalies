@@ -110,6 +110,14 @@ const MapWithRaster = () => {
         }
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset]);
 
+    const handleSliderChange = (setter: React.Dispatch<React.SetStateAction<number>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        setter(parseFloat(e.target.value));
+    };
+
+    const handleSliderMouseUp = (setter: React.Dispatch<React.SetStateAction<number>>) => (e: React.MouseEvent<HTMLInputElement>) => {
+        setter(parseFloat(e.currentTarget.value));
+    };
+
     return (
         <div>
             <div ref={mapContainerRef} id="map"/>
@@ -124,7 +132,8 @@ const MapWithRaster = () => {
                         max="1"
                         step="0.1"
                         value={osmOpacity}
-                        onChange={(e) => setOsmOpacity(parseFloat(e.target.value))}
+                        onChange={handleSliderChange(setOsmOpacity)}
+                        onMouseUp={handleSliderMouseUp(setOsmOpacity)}
                     />
                 </div>
                 <div className="slider-container">
@@ -135,7 +144,8 @@ const MapWithRaster = () => {
                         max="1"
                         step="0.1"
                         value={satelliteOpacity}
-                        onChange={(e) => setSatelliteOpacity(parseFloat(e.target.value))}
+                        onChange={handleSliderChange(setSatelliteOpacity)}
+                        onMouseUp={handleSliderMouseUp(setSatelliteOpacity)}
                     />
                 </div>
                 <div className="slider-container">
@@ -146,7 +156,8 @@ const MapWithRaster = () => {
                         max="1"
                         step="0.1"
                         value={anomaliesOpacity}
-                        onChange={(e) => setAnomaliesOpacity(parseFloat(e.target.value))}
+                        onChange={handleSliderChange(setAnomaliesOpacity)}
+                        onMouseUp={handleSliderMouseUp(setAnomaliesOpacity)}
                     />
                 </div>
                 <div className="slider-container">
@@ -157,7 +168,8 @@ const MapWithRaster = () => {
                         max="360"
                         step="5"
                         value={daysOffset}
-                        onChange={(e) => setDaysOffset(parseInt(e.target.value))}
+                        onChange={handleSliderChange(setDaysOffset)}
+                        onMouseUp={handleSliderMouseUp(setDaysOffset)}
                     />
                 </div>
             </div>
