@@ -4,9 +4,9 @@ import './MapWithRaster.css'; // For styling the toolbox overlay
 
 const MapWithRaster = () => {
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
-    const [osmOpacity, setOsmOpacity] = useState(0.0);
+    const [osmOpacity, setOsmOpacity] = useState(1.0);
     const [satelliteOpacity, setSatelliteOpacity] = useState(0.0);
-    const [anomaliesOpacity, setAnomaliesOpacity] = useState(0.5);
+    const [anomaliesOpacity, setAnomaliesOpacity] = useState(0.8);
     const [daysOffset, setDaysOffset] = useState(0);
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
@@ -19,6 +19,11 @@ const MapWithRaster = () => {
             date.getDate().toString().padStart(2, '0');
         return formattedDate;
     }
+
+    const getTileUrl = (): string => {
+        const date: string = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
+        return `http://localhost:8080/${date}/{z}/{x}/{y}.png`;
+    };
 
     useEffect(() => {
         if (mapContainerRef.current) {
@@ -63,10 +68,10 @@ const MapWithRaster = () => {
                 });
 
                 // Layer 3: Anomalies layer
-                const date = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
+                const url = getTileUrl();
                 map.addSource('anomalies-source', {
                     type: 'raster',
-                    tiles: [`http://localhost:8080/${date}/{z}/{x}/{y}.png`],
+                    tiles: [url],
                     tileSize: 256,
                 });
 
@@ -95,10 +100,9 @@ const MapWithRaster = () => {
             mapRef.current.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
 
             // Update the anomalies layer source to reflect the new date
-            const newDate = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
             const source = mapRef.current.getSource('anomalies-source');
             if (source && 'tiles' in source) {
-                (source as maplibreGl.RasterTileSource).tiles = [`http://localhost:8080/${newDate}/{z}/{x}/{y}.png`];
+                (source as maplibreGl.RasterTileSource).tiles = [getTileUrl()];
                 mapRef.current.style.sourceCaches['anomalies-source'].clearTiles();
                 mapRef.current.style.sourceCaches['anomalies-source'].update(mapRef.current.transform);
                 mapRef.current.triggerRepaint();
