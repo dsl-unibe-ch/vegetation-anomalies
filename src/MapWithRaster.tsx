@@ -1,14 +1,28 @@
 import React, {useEffect, useRef, useState} from 'react';
+import axios from 'axios';
 import maplibreGl from 'maplibre-gl';
-import './MapWithRaster.css'; // For styling the toolbox overlay
+import './MapWithRaster.css';
+import {parseStringPromise} from 'xml2js';
+
+const capabilitiesUrl: string = 'view-source:http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:va-test2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetCapabilities&Version=1.1.1';
+
+interface TileMatrixLimit {
+    TileMatrix: string;
+    MinTileRow: number;
+    MaxTileRow: number;
+    MinTileCol: number;
+    MaxTileCol: number;
+}
 
 const MapWithRaster = () => {
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
-    const [osmOpacity, setOsmOpacity] = useState(0.0);
+    const [osmOpacity, setOsmOpacity] = useState(1.0);
     const [satelliteOpacity, setSatelliteOpacity] = useState(0.0);
-    const [anomaliesOpacity, setAnomaliesOpacity] = useState(0.5);
+    const [anomaliesOpacity, setAnomaliesOpacity] = useState(0.8);
     const [daysOffset, setDaysOffset] = useState(0);
     const mapRef = useRef<maplibreGl.Map | null>(null);
+    const [tileMatrixLimits, setTileMatrixLimits] = useState<TileMatrixLimit[]>([]);
+    const [resourceUrl, setResourceUrl] = useState<string | null>(null);
 
     const formatDateWithOffset = (baseDate: Date, offsetDays: number, addHyphens: boolean): string => {
         const date: Date = new Date(baseDate)
@@ -66,8 +80,9 @@ const MapWithRaster = () => {
                 const date = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
                 map.addSource('anomalies-source', {
                     type: 'raster',
-                    tiles: [`http://localhost:8080/${date}/{z}/{x}/{y}.png`],
-                    tileSize: 256,
+                    // tiles: [`http://localhost:8080/${date}/{z}/{x}/{y}.png`],
+                    tiles: [`http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:va-test2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:{z}&TileCol={y}&TileRow={x}`],
+                    tileSize: 512,
                 });
 
                 map.addLayer({
@@ -85,6 +100,47 @@ const MapWithRaster = () => {
 
             return () => map.remove();
         }
+
+        const fetchAndParseXML = async () => {
+            try {
+                const response = await axios.get(capabilitiesUrl, {
+                    headers: {
+                        'Content-Type': 'application/xml'
+                    }
+                });
+
+                const result = await parseStringPromise(response.data);
+
+                // Navigate to the TileMatrixLimits for 'vegetaion-anomalies:va-test2'
+                const layer = result.Capabilities.Contents[0].Layer.find(
+                    (l: any) => l['ows:Identifier'][0] === 'vegetaion-anomalies:va-test2'
+                );
+
+                // Take the Tile Matrix with the projection 'EPSG:4326'
+                const tileMatrixSetLink = layer.TileMatrixSetLink.find(
+                    (link: any) => link.TileMatrixSet[0] === 'EPSG:4326'
+                );
+
+                const limits = tileMatrixSetLink.TileMatrixSetLimits[0].TileMatrixLimits.map(
+                    (limit: any) => ({
+                        TileMatrix: limit.TileMatrix[0],
+                        MinTileRow: parseInt(limit.MinTileRow[0], 10),
+                        MaxTileRow: parseInt(limit.MaxTileRow[0], 10),
+                        MinTileCol: parseInt(limit.MinTileCol[0], 10),
+                        MaxTileCol: parseInt(limit.MaxTileCol[0], 10)
+                    })
+                );
+
+                setTileMatrixLimits(limits);
+
+                // Setting the URL format for fetching tiles.
+                setResourceUrl(layer.ResourceURL.find((u: any) => u['$format'] === 'image/png'));
+            } catch (error) {
+                console.error('Error fetching or parsing XML:', error);
+            }
+        };
+
+        fetchAndParseXML().catch((error) => console.error('Error in fetchData:', error));
     }, []);
 
     // Update layer opacity and anomalies layer source after map load
@@ -98,7 +154,8 @@ const MapWithRaster = () => {
             const newDate = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
             const source = mapRef.current.getSource('anomalies-source');
             if (source && 'tiles' in source) {
-                (source as maplibreGl.RasterTileSource).tiles = [`http://localhost:8080/${newDate}/{z}/{x}/{y}.png`];
+                // (source as maplibreGl.RasterTileSource).tiles = [`http://localhost:8080/${newDate}/{z}/{x}/{y}.png`];
+                (source as maplibreGl.RasterTileSource).tiles = [`http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:va-test2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:{z}&TileCol={y}&TileRow={x}`];
                 mapRef.current.style.sourceCaches['anomalies-source'].clearTiles();
                 mapRef.current.style.sourceCaches['anomalies-source'].update(mapRef.current.transform);
                 mapRef.current.triggerRepaint();

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../vegetation-anomalies.iml" filepath="$PROJECT_DIR$/../vegetation-anomalies.iml" />
+      <module fileurl="file://$PROJECT_DIR$/vegetation-anomalies.iml" filepath="$PROJECT_DIR$/vegetation-anomalies.iml" />
     </modules>
   </component>
 </project>
