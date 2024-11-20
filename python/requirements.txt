@@ -1,0 +1,5 @@
+GDAL==3.8.4
+netCDF4==1.7.1.post2
+netCDF4==1.7.2
+numpy==2.1.3
+Pillow==11.0.0
