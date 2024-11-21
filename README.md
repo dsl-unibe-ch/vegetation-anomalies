@@ -1,14 +1,39 @@
 # Preparing the Environment
 
-To be able to build and run the project python 3 and npm a required. Create a virtual environment using the command
+## Virtual Environment
 
-`python -m venv <path to new virtual environment>`
+### Motivation
+To be able to set up GDAL without relying on the libraries installed at the OS level a Conda environment has to me used.
 
-To activate the environment use the following command.
+### Miniconda
 
-`source <path to new virtual environment/bin/activate`
+To install Miniconda - the more light-weight Conda environment - use the following commands. Change the path
+`~/miniconda3` to a different one, if you prefer to have the installation in a different location.
 
-To deactivate the environment type `deactivate` in your shell.
+`mkdir ~/miniconda3`
+`wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh`
+`bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3`
+`rm ~/miniconda3/miniconda.sh`
+
+To activate Miniconda in the current shell use the following command:
+
+`source ~/miniconda3/bin/activate`
+
+To deactivate it run the following command:
+
+`conda deactivate`
+
+## Installing Dependencies
+
+### Install GDAL from conda-forge
+
+Install gdal dependency separately.
+
+`conda install -c conda-forge gdal`
+
+Go to the `python` directory of the project and install the needed requirements using
+
+`pip install -r requirements.txt`
 
 # Generating XYZ Tiles
 
@@ -32,21 +57,37 @@ The following command generates tiles from input_file to output_directory with t
 
 Where zoom_levels should be in the format: <from>-<to>, where from and to are integers and from <= to. A typical value would be "0-18".
 
-## Running Tiles Server
+# Running Tiles Server
 
 The command to run the server is the following:
 
 `python file_server.py`
 
-The shell input prompt will not be available as long as the server is running. So it is a good idea to run the server in a separate shell. To stop the execution, press Ctrl+C.
+The shell input prompt will not be available as long as the server is running. So it is a good idea to run the server in 
+a separate shell. To stop the execution, press Ctrl+C.
 
 # React App
 
-The application assumes, the tiles server is running on `localhost:8080`, so make sure to start the server before starting the web application. 
+## Installations on the OS level
+
+Install the npm package manager. In Debian based Linux it is done with the following command:
+
+`sudo apt install npm`
+
+## Tiles Server Requirement
+
+The application assumes, the tiles server is running on `localhost:8080`, so make sure to start the 
+server before starting the web application.
+
+## Installing dependencies
+
+When running the application for the first time and when adding/updating the dependencies run the following command:
+
+`npm install`
 
 ## Running Locally for Debugging and Testing Purposes
 
-Run the following command.
+From the `python` directory run the following command.
 
 `npm run start`
 
@@ -66,22 +107,10 @@ It will deploy all necessary files in the build folder. This folder can be copie
 - We should go in direction of WMTS standard protocol for serving map tiles.
 - One TIF per date.
 - Add documentation what libraries are used for each tool - the tech stack.
-- Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
++ Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
 - Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
-- Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
 - NGIX server with a configuration to fallback to an empty image can be used instead a custom server.
-
-GeoServer request example:
-WMS:
-http://localhost:8080/geoserver/vegetaion-anomalies/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=vegetaion-anomalies:anomalies_2018&format=image/tiff
-
-WTMS:
-http://localhost:8080/geoserver/vegetaion-anomalies/gwc/service/wmts?layer=anomalies_2018&style=&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=EPSG:4326:0&TileCol=1&TileRow=0
-
-http://localhost:8080/geoserver/gwc/service/wmts?service=WMTS&version=1.1.1&request=GetCapabilities
-http://localhost:8080/geoserver/gwc/service/wmts?layer=anomalies_2018&style=&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:0&TileCol=1&TileRow=0
-
-Working URL:
-
-Image mosaic is needed:
-http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:test-va2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:1&TileCol=2&TileRow=0
++ Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
+    GeoServer request example:
+    WMS: http://localhost:8080/geoserver/vegetaion-anomalies/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=vegetaion-anomalies:anomalies_2018&format=image/tiff
+    WTMS: http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:test-va2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:1&TileCol=2&TileRow=0
