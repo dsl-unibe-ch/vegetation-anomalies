@@ -66,6 +66,12 @@ The command to run the server is the following:
 The shell input prompt will not be available as long as the server is running. So it is a good idea to run the server in 
 a separate shell. To stop the execution, press Ctrl+C.
 
+# Running nginx Tiles Server
+
+To install docker and a required plugin run
+
+`sudo apt install docker.io docker-buildx`
+
 # React App
 
 ## Installations on the OS level
@@ -79,7 +85,7 @@ Install the npm package manager. In Debian based Linux it is done with the follo
 The application assumes, the tiles server is running on `localhost:8080`, so make sure to start the 
 server before starting the web application.
 
-## Installing dependencies
+## Installing Dependencies
 
 When running the application for the first time and when adding/updating the dependencies run the following command:
 
