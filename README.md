@@ -153,9 +153,16 @@ It will deploy all necessary files in the build folder. This folder can be copie
 - One TIF per date.
 - Add documentation what libraries are used for each tool - the tech stack.
 + Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
-- Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
+
 + NGIX server with a configuration to fallback to an empty image can be used instead a custom server.
 + Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
     GeoServer request example:
     WMS: http://localhost:8080/geoserver/vegetaion-anomalies/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=vegetaion-anomalies:anomalies_2018&format=image/tiff
     WTMS: http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:test-va2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:1&TileCol=2&TileRow=0
+ 
+
+- What will be the execution environment? Can we use Docker to run a containerized file processing tool?
+- Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
+- How to visualize the parameters?
+- Any more specifics regarding the format for SwissTopo.
+- 
