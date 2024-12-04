@@ -165,4 +165,5 @@ It will deploy all necessary files in the build folder. This folder can be copie
 - Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
 - How to visualize the parameters?
 - Any more specifics regarding the format for SwissTopo.
-- 
+- In the Zarr format, how to interpret the timesteps, what date do they represent?
+  Do we accept a separate parameter as a base date? The step is probably 5 days.
