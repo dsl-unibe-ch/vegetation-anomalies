@@ -2,27 +2,15 @@ import React, {useEffect, useRef, useState} from 'react';
 import maplibreGl from 'maplibre-gl';
 import './MapWithRaster.css'; // For styling the toolbox overlay
 
-type Config = {
-    anomaliesHost: string;
-};
-
 const MapWithRaster = () => {
+    const homepage: string = process.env.PUBLIC_URL || '/';
+    const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const [osmOpacity, setOsmOpacity] = useState(1.0);
     const [satelliteOpacity, setSatelliteOpacity] = useState(0.0);
     const [anomaliesOpacity, setAnomaliesOpacity] = useState(0.8);
     const [daysOffset, setDaysOffset] = useState(0);
     const mapRef = useRef<maplibreGl.Map | null>(null);
-    const [config, setConfig] = useState<Config | null>(null);
-
-    const fetchConfig = async (): Promise<Config> => {
-        const response: Response = await fetch('/config.json');
-        if (!response.ok) {
-            throw new Error('Failed to fetch config');
-        }
-
-        return await response.json();
-    }
 
     const formatDateWithOffset = (baseDate: Date, offsetDays: number, addHyphens: boolean): string => {
         const date: Date = new Date(baseDate)
@@ -34,101 +22,93 @@ const MapWithRaster = () => {
         return formattedDate;
     };
 
-    const getTileUrl = (config: Config): string => {
+    const getTileUrl = (/*config: Config*/): string => {
         const date: string = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
-        return `${config.anomaliesHost}/${date}/{z}/{x}/{y}.png`;
+        return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
 
     useEffect(() => {
-        fetchConfig().then((config: Config) => {
-            if (mapContainerRef.current) {
-                const map = new maplibreGl.Map({
-                    container: mapContainerRef.current as HTMLElement,
-                    style: 'https://demotiles.maplibre.org/style.json',
-                    center: [8.75, 47.47],
-                    zoom: 13,
+        if (mapContainerRef.current) {
+            const map = new maplibreGl.Map({
+                container: mapContainerRef.current as HTMLElement,
+                style: 'https://demotiles.maplibre.org/style.json',
+                center: [8.75, 47.47],
+                zoom: 13,
+            });
+
+            map.on('load', () => {
+                // Layer 1: OpenStreetMap base raster layer
+                map.addSource('osm-source', {
+                    type: 'raster',
+                    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                    tileSize: 256,
                 });
 
-                map.on('load', () => {
-                    // Layer 1: OpenStreetMap base raster layer
-                    map.addSource('osm-source', {
-                        type: 'raster',
-                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                        tileSize: 256,
-                    });
-
-                    map.addLayer({
-                        id: 'osm-layer',
-                        type: 'raster',
-                        source: 'osm-source',
-                        paint: {
-                            'raster-opacity': osmOpacity,
-                        },
-                    });
-
-                    // Layer 2: Stamen Terrain layer
-                    map.addSource('satellite-source', {
-                        type: 'raster',
-                        tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                        tileSize: 256,
-                    });
-
-                    map.addLayer({
-                        id: 'satellite-layer',
-                        type: 'raster',
-                        source: 'satellite-source',
-                        paint: {
-                            'raster-opacity': satelliteOpacity,
-                        },
-                    });
-
-                    // Layer 3: Anomalies layer
-                    map.addSource('anomalies-source', {
-                        type: 'raster',
-                        tiles: [getTileUrl(config)],
-                        tileSize: 256,
-                    });
-
-                    map.addLayer({
-                        id: 'anomalies-layer',
-                        type: 'raster',
-                        source: 'anomalies-source',
-                        paint: {
-                            'raster-opacity': anomaliesOpacity,
-                        },
-                    });
-
-                    // Save map reference after loading is complete
-                    mapRef.current = map;
+                map.addLayer({
+                    id: 'osm-layer',
+                    type: 'raster',
+                    source: 'osm-source',
+                    paint: {
+                        'raster-opacity': osmOpacity,
+                    },
                 });
 
-                return (): void => map.remove();
-            }
-        }).catch((err: any): void => {
-            console.error(err.message || 'Failed to load configuration');
-        });
+                // Layer 2: Stamen Terrain layer
+                map.addSource('satellite-source', {
+                    type: 'raster',
+                    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                    tileSize: 256,
+                });
+
+                map.addLayer({
+                    id: 'satellite-layer',
+                    type: 'raster',
+                    source: 'satellite-source',
+                    paint: {
+                        'raster-opacity': satelliteOpacity,
+                    },
+                });
+
+                // Layer 3: Anomalies layer
+                map.addSource('anomalies-source', {
+                    type: 'raster',
+                    tiles: [getTileUrl()],
+                    tileSize: 256,
+                });
+
+                map.addLayer({
+                    id: 'anomalies-layer',
+                    type: 'raster',
+                    source: 'anomalies-source',
+                    paint: {
+                        'raster-opacity': anomaliesOpacity,
+                    },
+                });
+
+                // Save map reference after loading is complete
+                mapRef.current = map;
+            });
+
+            return (): void => map.remove();
+        }
     }, []);
 
     // Update layer opacity and anomalies layer source after map load
     useEffect(() => {
-        fetchConfig().then((config: Config) => {
-            if (mapRef && mapRef.current && mapRef.current.isStyleLoaded()) {
-                mapRef.current.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
-                mapRef.current.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
-                mapRef.current.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
+        if (mapRef && mapRef.current && mapRef.current.isStyleLoaded()) {
+            mapRef.current.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
+            mapRef.current.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
+            mapRef.current.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
 
-                // Update the anomalies layer source to reflect the new date
-                const source = mapRef.current.getSource('anomalies-source');
-                if (config && source && 'tiles' in source) {
-                    (source as maplibreGl.RasterTileSource).tiles = [getTileUrl(config)];
-                    mapRef.current.style.sourceCaches['anomalies-source'].clearTiles();
-                    mapRef.current.style.sourceCaches['anomalies-source'].update(mapRef.current.transform);
-                    mapRef.current.triggerRepaint();
-                }
+            // Update the anomalies layer source to reflect the new date
+            const source = mapRef.current.getSource('anomalies-source');
+            if (source && 'tiles' in source) {
+                (source as maplibreGl.RasterTileSource).tiles = [getTileUrl(/*config*/)];
+                mapRef.current.style.sourceCaches['anomalies-source'].clearTiles();
+                mapRef.current.style.sourceCaches['anomalies-source'].update(mapRef.current.transform);
+                mapRef.current.triggerRepaint();
             }
-        }).catch((err: any): void => {
-            console.error(err.message || 'Failed to load configuration');
-        });
+        }
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset]);
 
     const handleSliderChange = (setter: React.Dispatch<React.SetStateAction<number>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
