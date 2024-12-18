@@ -65,8 +65,8 @@ def main():
 
     # Path to the Zarr folder and output directory
     zarr_folder = '../data/larger-anomalies.zarr'
-    output_folder = '../data/larger_cubes_demo_output_2'
-    zoom_levels = '0-12'
+    output_folder = '../data/larger_cubes_demo_output_4'
+    zoom_levels = '0-11'
 
     # Create output folder if it doesn’t exist
     os.makedirs(output_folder, exist_ok=True)
@@ -124,8 +124,8 @@ def main():
         y_max = y_values.max()
 
         pixel_width = (x_max - x_min) / len(x_values)
-        pixel_height = (y_min - y_max) / len(y_values)  # Negative for top-to-bottom
-        dataset.SetGeoTransform([x_min, pixel_width, 0, y_min, 0, -pixel_height])
+        pixel_height = (y_max - y_min) / len(y_values)
+        dataset.SetGeoTransform([x_min, pixel_width, 0, y_max, 0, -pixel_height])
 
         # Set spatial reference
         srs = osr.SpatialReference()
@@ -137,7 +137,7 @@ def main():
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
         os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f"gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes=20 --xyz {temp_tiff_path} {tile_output_dir}")
+        os.system(f"gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes=22 --xyz {temp_tiff_path} {tile_output_dir}")
 
         # Remove the temporary GeoTIFF
         os.remove(temp_tiff_path)
