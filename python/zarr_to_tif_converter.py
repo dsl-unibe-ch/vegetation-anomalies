@@ -31,7 +31,7 @@ for slice_index in range(zarr_array.shape[2]):
         data_slice_computed = data_slice.compute()
 
     # Write the slice to GeoTIFF
-    output_path = f'../data/dimpeo_output/anomalies{slice_index}.tif'
+    output_path = f'../data/dimpeo_output/anomalies{slice_index:02}.tif'
     with rasterio.Env():
         with rasterio.open(
                 output_path,
