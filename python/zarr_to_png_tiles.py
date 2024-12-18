@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -6,26 +7,10 @@ import zarr
 from osgeo import gdal, osr
 from tqdm import tqdm
 
-# import cupy as cp
-
 negative_anomaly_color = [204, 0, 0, 255]
 no_anomaly_color = [128, 128, 128, 255]
 positive_anomaly_color = [0, 0, 204, 255]
 no_data_color = [0, 0, 0, 0]
-
-# # Function to map values to a color ramp
-# def map_value_to_color_gpu(value):
-#     colors = cp.array([
-#         [204, 0, 0, 255],  # Negative anomaly - dark red
-#         [0, 0, 0, 0],      # Normal state - transparent
-#         [204, 0, 0, 255],  # Positive anomaly - dark blue
-#     ], dtype=cp.uint8)
-#     default_color = cp.array([128, 128, 128, 128], dtype=cp.uint8) # No data - translucent grey
-#
-#     mask = (value >= 0) & (value <= 255)
-#     result = cp.where(mask[:, :, None], colors[value], default_color)
-#     return result
-
 
 # Function to map values to a color ramp
 def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
@@ -54,6 +39,15 @@ def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive
 
 
 def main():
+    if len(sys.argv) < 5:
+        print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes>")
+        sys.exit(1)
+
+    zarr_folder = sys.argv[1]
+    output_folder = sys.argv[2]
+    zoom_levels = sys.argv[3]
+    processes = int(sys.argv[4])
+
     # Set PROJ_LIB dynamically based on Conda installation
     conda_prefix = os.environ.get('CONDA_PREFIX')
     if conda_prefix:
@@ -63,12 +57,7 @@ def main():
     START_DATE = datetime(2018, 1, 5) #TODO: Read the values from the settings
     TIME_STEP_DAYS = 5
 
-    # Path to the Zarr folder and output directory
-    zarr_folder = '../data/larger-anomalies.zarr'
-    output_folder = '../data/larger_cubes_demo_output_4'
-    zoom_levels = '0-11'
-
-    # Create output folder if it doesn’t exist
+        # Create output folder if it doesn’t exist
     os.makedirs(output_folder, exist_ok=True)
 
     # Open the Zarr array
@@ -101,15 +90,6 @@ def main():
 
         rgba_data = map_value_to_color_cpu(data, colors_lookup_table, no_data_color)
 
-        # # Transfer data to GPU
-        # data_gpu = cp.array(data, dtype=cp.uint8)
-        #
-        # # Map values to RGBA colors on GPU
-        # rgba_data_gpu = map_value_to_color_gpu(data_gpu)
-        #
-        # # Transfer RGBA data back to CPU
-        # rgba_data = cp.asnumpy(rgba_data_gpu)
-
         # Save the RGBA data to a temporary GeoTIFF
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
         driver = gdal.GetDriverByName("GTiff")
@@ -137,7 +117,7 @@ def main():
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
         os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f"gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes=22 --xyz {temp_tiff_path} {tile_output_dir}")
+        os.system(f'gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes={processes} --xyz {temp_tiff_path} {tile_output_dir}')
 
         # Remove the temporary GeoTIFF
         os.remove(temp_tiff_path)
