@@ -2,8 +2,9 @@ import React, {useEffect, useRef, useState} from 'react';
 import maplibreGl from 'maplibre-gl';
 import './MapWithRaster.css'; // For styling the toolbox overlay
 
+const INITIAL_DATE = new Date(2023, 0, 4);
+
 const MapWithRaster = () => {
-    const homepage: string = process.env.PUBLIC_URL || '/';
     const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const [osmOpacity, setOsmOpacity] = useState(1.0);
@@ -22,8 +23,8 @@ const MapWithRaster = () => {
         return formattedDate;
     };
 
-    const getTileUrl = (/*config: Config*/): string => {
-        const date: string = formatDateWithOffset(new Date(2018, 0, 5), daysOffset, false);
+    const getTileUrl = (): string => {
+        const date: string = formatDateWithOffset(INITIAL_DATE, daysOffset, false);
         return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
 
@@ -162,7 +163,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(new Date(2018, 0, 5), daysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(INITIAL_DATE, daysOffset, true)}</label>
                     <input
                         type="range"
                         min="0"

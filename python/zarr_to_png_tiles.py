@@ -7,10 +7,10 @@ import zarr
 from osgeo import gdal, osr
 from tqdm import tqdm
 
-negative_anomaly_color = [204, 0, 0, 255]
-no_anomaly_color = [128, 128, 128, 255]
-positive_anomaly_color = [0, 0, 204, 255]
-no_data_color = [0, 0, 0, 0]
+NEGATIVE_ANOMALY_COLOR = [204, 0, 0, 255]
+NO_ANOMALY_COLOR = [128, 128, 128, 255]
+POSITIVE_ANOMALY_COLOR = [0, 0, 204, 255]
+NO_DATA_COLOR = [0, 0, 0, 0]
 
 # Function to map values to a color ramp
 def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
@@ -30,11 +30,11 @@ def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
 
 
 def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id):
-    colors_lookup_table = [no_data_color] * 256
-    colors_lookup_table[missing_id] = no_data_color
-    colors_lookup_table[negative_anomaly_id] = negative_anomaly_color
-    colors_lookup_table[normal_id] = no_anomaly_color
-    colors_lookup_table[positive_anomaly_id] = positive_anomaly_color
+    colors_lookup_table = [NO_DATA_COLOR] * 256
+    colors_lookup_table[missing_id] = NO_DATA_COLOR
+    colors_lookup_table[negative_anomaly_id] = NEGATIVE_ANOMALY_COLOR
+    colors_lookup_table[normal_id] = NO_ANOMALY_COLOR
+    colors_lookup_table[positive_anomaly_id] = POSITIVE_ANOMALY_COLOR
     return colors_lookup_table
 
 
@@ -53,11 +53,7 @@ def main():
     if conda_prefix:
         os.environ['PROJ_LIB'] = os.path.join(conda_prefix, 'share', 'proj')
 
-    # Constants for the conversion
-    START_DATE = datetime(2018, 1, 5) #TODO: Read the values from the settings
-    TIME_STEP_DAYS = 5
-
-        # Create output folder if it doesn’t exist
+    # Create output folder if it doesn’t exist
     os.makedirs(output_folder, exist_ok=True)
 
     # Open the Zarr array
@@ -66,11 +62,8 @@ def main():
     zattrs = zarr_dataset.attrs
     x_values = zarr_dataset.E[:]
     y_values = zarr_dataset.N[:]
-    time_values = zarr_dataset.time[:] #TODO: use these values.
-
-    print("Extracted .zattrs values:")
-    for key, value in zattrs.items():
-        print(f"{key}: {value}")
+    time_values = zarr_dataset.time[:]
+    start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
 
     # Reading parameters from attributes of the Zarr format.
     zarr_crs = zattrs['crs']
@@ -83,12 +76,12 @@ def main():
 
     # Generate tiles with GDAL
     for t in tqdm(range(zarr_dataset.data.shape[0])):
-        date = (START_DATE + timedelta(days=t * TIME_STEP_DAYS)).strftime("%Y%m%d")
+        date = (start_date + timedelta(days=time_values[t].item())).strftime("%Y%m%d")
 
         # Read the 2D array for the current timestep
         data = zarr_dataset.data[t, :, :]
 
-        rgba_data = map_value_to_color_cpu(data, colors_lookup_table, no_data_color)
+        rgba_data = map_value_to_color_cpu(data, colors_lookup_table, NO_DATA_COLOR)
 
         # Save the RGBA data to a temporary GeoTIFF
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
