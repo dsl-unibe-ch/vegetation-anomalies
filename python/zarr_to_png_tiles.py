@@ -24,11 +24,11 @@ from tqdm import tqdm
 # Function to map values to a color ramp
 def map_value_to_color_cpu(value):
     colors = np.array([
-        [204, 0, 0, 255],  # Negative anomaly - dark red
-        [0, 0, 0, 0],      # Normal state - transparent
-        [204, 0, 0, 255],  # Positive anomaly - dark blue
+        [204, 0, 0, 255],    # Negative anomaly - dark red
+        [128, 128, 128, 128],# Normal state - grey
+        [204, 0, 0, 255],    # Positive anomaly - dark blue
     ], dtype=np.uint8)
-    default_color = np.array([128, 128, 128, 128], dtype=np.uint8)  # No data (value = 255) - translucent grey
+    default_color = np.array([0, 0, 0, 0], dtype=np.uint8)  # No data (value = 255) - transparent
 
     # Create a result array filled with the default color
     result = np.full((value.shape[0], value.shape[1], 4), default_color, dtype=np.uint8)
@@ -116,7 +116,7 @@ for t in tqdm(range(zarr_dataset.data.shape[0])):
     # Use gdal2tiles to generate tiles from the temporary GeoTIFF
     tile_output_dir = os.path.join(output_folder, date)
     os.makedirs(tile_output_dir, exist_ok=True)
-    os.system(f"gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --xyz {temp_tiff_path} {tile_output_dir}")
+    os.system(f"gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes=20 --xyz {temp_tiff_path} {tile_output_dir}")
 
     # Remove the temporary GeoTIFF
     os.remove(temp_tiff_path)
