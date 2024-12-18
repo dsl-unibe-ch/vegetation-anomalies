@@ -30,7 +30,7 @@ To deactivate it run the following command:
 
 Install gdal dependency separately.
 
-`conda install -c conda-forge gdal`
+`conda install -c conda-forge gdal zarr`
 
 Go to the `python` directory of the project and install the needed requirements using
 
