@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 from osgeo import gdal, gdalconst
+from sockshandler import is_ip
 
 gdal.UseExceptions()
 
@@ -14,19 +15,15 @@ warnings.filterwarnings('ignore', category=UserWarning, append=True)
 def validate_input_files(input_files):
     valid_files = []
     for file in input_files:
-        ds = None
-        try:
-            ds = gdal.Open(file)
-            if ds is None:
-                print(f"Warning: Unable to open {file}. Skipping this file.")
-            elif ds.RasterXSize > 0 and ds.RasterYSize > 0:
-                valid_files.append(file)
-            else:
-                print(f"Warning: {file} has zero size. Skipping this file.")
-        finally:
-            if ds:
-                ds = None
+        ds = gdal.Open(file)
+        if ds is None:
+            print(f"Warning: Unable to open {file}. Skipping this file.")
+        elif ds.RasterXSize > 0 and ds.RasterYSize > 0:
+            valid_files.append(file)
+        else:
+            print(f"Warning: {file} has zero size. Skipping this file.")
     return valid_files
+
 
 def merge_input_files(input_files, output_file):
     if not input_files:
@@ -39,6 +36,7 @@ def merge_input_files(input_files, output_file):
         print(f"Error during merging input files: {e}")
         raise
 
+
 def extract_band_nc(input_file, band_number, output_file):
     ds = None
     try:
@@ -49,6 +47,7 @@ def extract_band_nc(input_file, band_number, output_file):
     finally:
         if ds:
             ds = None
+
 
 def convert_band_to_8bit(input_file, band_number, output_file):
     # Map specific input values to colours: 0 -> transparent, -1 -> dark red, -2 -> light red
@@ -80,6 +79,7 @@ def convert_band_to_8bit(input_file, band_number, output_file):
     out_ds.GetRasterBand(4).WriteArray(alpha_band)
     out_ds.GetRasterBand(4).SetColorInterpretation(gdal.GCI_AlphaBand)
 
+
 def generate_xyz_tiles(input_file, output_directory, zoom_levels):
     command = [
         'gdal2tiles.py', '-z', zoom_levels, '-r', 'bilinear', '--xyz', '--s_srs', 'EPSG:4326', '-w', 'none',
@@ -91,11 +91,13 @@ def generate_xyz_tiles(input_file, output_directory, zoom_levels):
         print(f"Error during generating XYZ tiles: {e}")
         raise
 
+
 def remove_aux_files(output_directory):
     for root, _, files in os.walk(output_directory):
         for file in files:
             if file.endswith(".aux.xml"):
                 os.remove(os.path.join(root, file))
+
 
 def get_base_date(time_variable):
     time_units = time_variable.units
@@ -103,7 +105,8 @@ def get_base_date(time_variable):
     base_date = datetime.strptime(base_date_str, "%Y-%m-%d %H:%M:%S")
     return base_date
 
-def get_time_from_tif(input_file):
+
+def get_dates_from_tif(input_file):
     ds = gdal.Open(input_file)
     if ds is None:
         raise RuntimeError(f"Failed to open {input_file}.")
@@ -117,21 +120,17 @@ def get_time_from_tif(input_file):
     dates = [(base_date + timedelta(days=t)).strftime("%Y%m%d") for t in time_values]
     return dates
 
-def main():
-    if len(sys.argv) < 4:
-        print("Usage: python xyz_creator.py <input_file> <output_directory> <zoom_levels>")
-        print("zoom_levels example: 0-18")
-        sys.exit(1)
 
-    input_file = sys.argv[1]
-    output_directory = sys.argv[2]
-    zoom_levels = sys.argv[3]
+def get_dates_from_folder(input_folder):
+    # TODO: implement actual time values being read from the files names of the input folder. For now we use the default dates.
+    base_date = datetime.strptime("2018-01-05", "%Y-%m-%d")
+    time_values = range(73)
+    dates = [(base_date + timedelta(days=t)).strftime("%Y%m%d") for t in time_values]
+    return dates
 
-    # Step 1: Get the time variable from the merged TIF file
-    dates = get_time_from_tif(input_file)
+def process_single_tiff(input_file, output_directory, zoom_levels):
+    dates = get_dates_from_tif(input_file)
     actual_num_bands = len(dates)
-
-    # Step 2: Extract each band, convert to 8-bit, and generate XYZ tiles
     for band_number, date in enumerate(dates, start=1):
         print(f"Processing band {band_number}/{actual_num_bands}")
         band_file = f'{input_file}_band_{band_number}_8bit.tif'
@@ -154,9 +153,57 @@ def main():
 
         # Cleanup
         os.remove(band_file)
-
     # Remove auxiliary files and band directories
     remove_aux_files(output_directory)
+
+def process_tiff_directory(input_directory, output_directory, zoom_levels):
+    dates = get_dates_from_folder(input_directory)
+    input_files = sorted(os.listdir(input_directory))
+    actual_num_bands = len(dates)
+    for file_number, input_file_name in enumerate(input_files, start=1):
+        input_file = f'{input_directory}/{input_file_name}'
+        print(f"Processing file {file_number}/{actual_num_bands}")
+        band_file = f'{input_file}_file_8bit.tif'
+        band_output_directory = os.path.join(output_directory, dates[file_number])
+
+        # Convert the band to an 8-bit single-band file
+        convert_band_to_8bit(input_file, 1, band_file)
+
+        # Access the band file and generate XYZ tiles if it contains valid data
+        ds = gdal.Open(band_file)
+        if ds is not None:
+            band = ds.GetRasterBand(1)
+            band_data = band.ReadAsArray()
+            if band_data is not None and np.any(band_data != 0):
+                generate_xyz_tiles(band_file, band_output_directory, zoom_levels)
+            else:
+                print(f"Skipping file {file_number} as it contains no valid data (all values are zero).")
+        else:
+            print(f"Skipping file {file_number} due to invalid dataset.")
+
+        # Cleanup
+        os.remove(band_file)
+    # Remove auxiliary files and band directories
+    remove_aux_files(output_directory)
+
+
+def main():
+    if len(sys.argv) < 4:
+        print("Usage: python xyz_creator.py <input_file/input_directory> <output_directory> <zoom_levels>")
+        print("zoom_levels example: 0-18")
+        sys.exit(1)
+
+    input_path = sys.argv[1]
+    output_directory = sys.argv[2]
+    zoom_levels = sys.argv[3]
+
+    # Check if we want to convert signe TIF or a directory
+    is_dir = os.path.isdir(input_path)
+
+    if is_dir:
+        process_tiff_directory(input_path, output_directory, zoom_levels)
+    else:
+        process_single_tiff(input_path, output_directory, zoom_levels)
 
 
 if __name__ == "__main__":
