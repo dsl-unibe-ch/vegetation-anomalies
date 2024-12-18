@@ -110,7 +110,7 @@ def main():
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
         os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f'gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes={processes} --xyz {temp_tiff_path} {tile_output_dir}')
+        os.system(f'gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes={processes} --xyz -x {temp_tiff_path} {tile_output_dir}')
 
         # Remove the temporary GeoTIFF
         os.remove(temp_tiff_path)
