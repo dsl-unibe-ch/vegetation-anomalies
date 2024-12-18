@@ -3,6 +3,7 @@
 ## Virtual Environment
 
 ### Motivation
+
 To be able to set up GDAL without relying on the libraries installed at the OS level a Conda environment has to me used.
 
 ### Miniconda
@@ -57,14 +58,58 @@ The following command generates tiles from input_file to output_directory with t
 
 Where zoom_levels should be in the format: <from>-<to>, where from and to are integers and from <= to. A typical value would be "0-18".
 
-# Running Tiles Server
+# Running nginx Tiles Server
 
-The command to run the server is the following:
+## Prerequisites
 
-`python file_server.py`
+To install docker and a required plugin run
 
-The shell input prompt will not be available as long as the server is running. So it is a good idea to run the server in 
-a separate shell. To stop the execution, press Ctrl+C.
+`sudo apt install docker.io docker-buildx`
+
+## Preparatory steps
+
+Look up is your container is running
+
+`docker ps`
+
+If it is the case stop the existing container with the command
+
+`docker stop <conatiner name>`
+
+## Building Image
+
+If needed the image can be built from the Dockerfile recipe:
+
+`docker build docker/tiles_server --tag tiles-server`
+
+## Starting Container
+
+To start the dockerized server use the following command (change the path of the local mounted directory if needed):
+
+`docker run -p 8080:80 --mount type=bind,source=./data/cubes_demo_output,target=/usr/share/nginx/html,readonly --name tiles-server tiles-server &`
+
+Press Enter at the end to exit to the shell. The server will be running in the background. If you want to keep the 
+server process attached to see the output, remove the symbol '&' at the end. 
+
+## Stopping Container
+
+To stop a running container use the command:
+
+`docker stop tiles-server`
+
+## Removing Container
+
+`docker rm tiles-server`
+
+Note that the container does not have to be removed, unless the corresponding image has changed.
+
+## Removing Image
+
+If you want to remove the created image in the future, use the command:
+
+`docker rmi tiles-server`
+
+Note that the image does not have to be removed, if no changed have been made in Dockerfile.
 
 # React App
 
@@ -76,10 +121,10 @@ Install the npm package manager. In Debian based Linux it is done with the follo
 
 ## Tiles Server Requirement
 
-The application assumes, the tiles server is running on `localhost:8080`, so make sure to start the 
+The application assumes, the tiles server is running on 'localhost:8080', so make sure to start the 
 server before starting the web application.
 
-## Installing dependencies
+## Installing Dependencies
 
 When running the application for the first time and when adding/updating the dependencies run the following command:
 
@@ -87,7 +132,7 @@ When running the application for the first time and when adding/updating the dep
 
 ## Running Locally for Debugging and Testing Purposes
 
-From the `python` directory run the following command.
+From the 'python' directory run the following command.
 
 `npm run start`
 
@@ -105,11 +150,12 @@ It will deploy all necessary files in the build folder. This folder can be copie
 # TODO
 + Contact the customer to show the demo.
 - We should go in direction of WMTS standard protocol for serving map tiles.
-- One TIF per date.
+- One TIF per date. Maybe?
 - Add documentation what libraries are used for each tool - the tech stack.
 + Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
-- Discussion point: what to do if there are no data because of a cloud (for example), shall we take the data from one of the previous cubes?
-- NGIX server with a configuration to fallback to an empty image can be used instead a custom server.
+- Write a script that runs the following command several times in parallel to speed up the Zarr to GTiff
+  conversion process.
++ NGIX server with a configuration to fallback to an empty image can be used instead a custom server.
 + Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
     GeoServer request example:
     WMS: http://localhost:8080/geoserver/vegetaion-anomalies/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=vegetaion-anomalies:anomalies_2018&format=image/tiff
