@@ -42,8 +42,6 @@ def map_value_to_color_cpu(value):
 
     return result
 
-# os.environ['PROJ_LIB'] = '/home/viktor/Work/Tools/miniconda3/share/proj'
-
 # Set PROJ_LIB dynamically based on Conda installation
 conda_prefix = os.environ.get('CONDA_PREFIX')
 if conda_prefix:
