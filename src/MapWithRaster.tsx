@@ -118,7 +118,7 @@ const MapWithRaster = () => {
             }
 
             // Add the anomalies source with the updated tile URL
-            const newTileUrl = getTileUrl(initialDate, daysOffset);
+            const newTileUrl = getTileUrl();
             mapRef.current.addSource('anomalies-source', {
                 type: 'raster',
                 tiles: [newTileUrl],
