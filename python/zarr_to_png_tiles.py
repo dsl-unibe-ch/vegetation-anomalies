@@ -1,11 +1,8 @@
-from unittest import case
-
-import rasterio
-import zarr
-import numpy as np
 import os
-import xarray as xr
 from datetime import datetime, timedelta
+
+import numpy as np
+import zarr
 from osgeo import gdal, osr
 from tqdm import tqdm
 
@@ -53,8 +50,8 @@ TIME_STEP_DAYS = 5
 
 # Path to the Zarr folder and output directory
 zarr_folder = '../data/larger-anomalies.zarr'
-output_folder = '../data/larger_cubes_demo_output'
-zoom_levels = '0-12'
+output_folder = '../data/larger_cubes_demo_output_4'
+zoom_levels = '0-18'
 
 # Create output folder if it doesn’t exist
 os.makedirs(output_folder, exist_ok=True)
@@ -72,19 +69,6 @@ for key, value in zattrs.items():
     print(f"{key}: {value}")
 
 zarr_crs = zattrs['crs']
-# transform = zattrs['transform']
-# transform = rasterio.Affine(zattrs['transform'])
-# transform = rasterio.Affine(
-#     20.0,
-#     0.0,
-#     2484000.0,
-#     0.0,
-#     -20.0,
-#     1296000.0,
-#     0.0,
-#     0.0,
-#     1.0
-# )
 
 # Generate tiles with GDAL
 for t in tqdm(range(zarr_dataset.data.shape[0])):
@@ -112,12 +96,6 @@ for t in tqdm(range(zarr_dataset.data.shape[0])):
     for band in range(4):
         dataset.GetRasterBand(band + 1).WriteArray(rgba_data[:, :, band])
 
-    # Set a basic geotransform (maybe should be adjusted)
-    # dataset.SetGeoTransform([0, 1, 0, 0, 0, -1])
-    # dataset.SetGeoTransform([20.0, 0.0, 2484000.0,
-    #                          0.0, -20.0, 1296000.0,
-    #                          0.0, 0.0, 1.0])
-
     x_min = x_values.min()
     y_min = y_values.min()
     x_max = x_values.max()
@@ -126,10 +104,6 @@ for t in tqdm(range(zarr_dataset.data.shape[0])):
     pixel_width = (x_max - x_min) / len(x_values)
     pixel_height = (y_min - y_max) / len(y_values)  # Negative for top-to-bottom
     dataset.SetGeoTransform([x_min, pixel_width, 0, y_min, 0, -pixel_height])
-
-    # srs = osr.SpatialReference(zarr_crs)
-    # srs.ImportFromEPSG(4326)  # WGS84
-    # dataset.SetProjection(zarr_crs)
 
     # Set spatial reference
     srs = osr.SpatialReference()
