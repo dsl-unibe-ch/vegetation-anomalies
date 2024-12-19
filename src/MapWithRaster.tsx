@@ -80,6 +80,8 @@ const MapWithRaster = () => {
                 // Layer 3: Anomalies layer
                 map.addSource('anomalies-source', {
                     type: 'raster',
+                    minzoom: 1,
+                    maxzoom: 18,
                     tiles: [getTileUrl(daysOffset)],
                     tileSize: 256,
                 });
