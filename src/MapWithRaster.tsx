@@ -28,7 +28,7 @@ const MapWithRaster = () => {
             date.getDate().toString().padStart(2, '0');
     };
 
-    const getTileUrl = (): string => {
+    const getTileUrl = (daysOffset: number): string => {
         const date: string = formatDateWithOffset(INITIAL_DATE, daysOffset, false);
         return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
@@ -80,7 +80,7 @@ const MapWithRaster = () => {
                 // Layer 3: Anomalies layer
                 map.addSource('anomalies-source', {
                     type: 'raster',
-                    tiles: [getTileUrl()],
+                    tiles: [getTileUrl(daysOffset)],
                     tileSize: 256,
                 });
 
@@ -118,7 +118,7 @@ const MapWithRaster = () => {
             }
 
             // Add the anomalies source with the updated tile URL
-            const newTileUrl = getTileUrl();
+            const newTileUrl = getTileUrl(daysOffset);
             mapRef.current.addSource('anomalies-source', {
                 type: 'raster',
                 tiles: [newTileUrl],
@@ -135,7 +135,7 @@ const MapWithRaster = () => {
                 },
             });
         }
-    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, getTileUrl]);
+    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset]);
 
     return (
         <div>
@@ -144,7 +144,7 @@ const MapWithRaster = () => {
             <div className="toolbox">
                 <h3>Layer Controls</h3>
                 <div className="slider-container">
-                    <label>OSM Layer Opacity: {osmOpacity}</label>
+                    <label>OSM Layer Opacity: {sliderOsmOpacity}</label>
                     <input
                         type="range"
                         min="0"
@@ -158,7 +158,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Satellite Layer Opacity: {satelliteOpacity}</label>
+                    <label>Satellite Layer Opacity: {sliderSatelliteOpacity}</label>
                     <input
                         type="range"
                         min="0"
@@ -172,7 +172,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Anomalies Layer Opacity: {anomaliesOpacity}</label>
+                    <label>Anomalies Layer Opacity: {sliderAnomaliesOpacity}</label>
                     <input
                         type="range"
                         min="0"
@@ -186,7 +186,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(INITIAL_DATE, daysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(INITIAL_DATE, sliderDaysOffset, true)}</label>
                     <input
                         type="range"
                         min="0"
