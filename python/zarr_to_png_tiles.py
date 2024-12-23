@@ -38,6 +38,32 @@ def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive
     return colors_lookup_table
 
 
+def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, zarr_crs):
+    # Save the RGBA data to a temporary GeoTIFF
+    driver = gdal.GetDriverByName("GTiff")
+    dataset = driver.Create(temp_tiff_path, data.shape[1], data.shape[0], 4, gdal.GDT_Byte)
+
+    for band in range(4):
+        dataset.GetRasterBand(band + 1).WriteArray(rgba_data[:, :, band])
+
+    x_min = x_values.min()
+    y_min = y_values.min()
+    x_max = x_values.max()
+    y_max = y_values.max()
+
+    pixel_width = (x_max - x_min) / len(x_values)
+    pixel_height = (y_max - y_min) / len(y_values)
+    dataset.SetGeoTransform([x_min, pixel_width, 0, y_max, 0, -pixel_height])
+
+    # Set spatial reference
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(int(zarr_crs.split(':')[1]))
+    dataset.SetProjection(srs.ExportToWkt())
+    dataset.FlushCache()
+
+    return temp_tiff_path
+
+
 def main():
     if len(sys.argv) < 5:
         print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes>")
@@ -83,29 +109,8 @@ def main():
 
         rgba_data = map_value_to_color_cpu(data, colors_lookup_table, NO_DATA_COLOR)
 
-        # Save the RGBA data to a temporary GeoTIFF
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
-        driver = gdal.GetDriverByName("GTiff")
-        dataset = driver.Create(temp_tiff_path, data.shape[1], data.shape[0], 4, gdal.GDT_Byte)
-
-        for band in range(4):
-            dataset.GetRasterBand(band + 1).WriteArray(rgba_data[:, :, band])
-
-        x_min = x_values.min()
-        y_min = y_values.min()
-        x_max = x_values.max()
-        y_max = y_values.max()
-
-        pixel_width = (x_max - x_min) / len(x_values)
-        pixel_height = (y_max - y_min) / len(y_values)
-        dataset.SetGeoTransform([x_min, pixel_width, 0, y_max, 0, -pixel_height])
-
-        # Set spatial reference
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(int(zarr_crs.split(':')[1]))
-        dataset.SetProjection(srs.ExportToWkt())
-
-        dataset.FlushCache()
+        create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, zarr_crs)
 
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
