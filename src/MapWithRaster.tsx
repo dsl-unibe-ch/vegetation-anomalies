@@ -6,6 +6,8 @@ const TILE_SIZE = 256;
 const MIN_ZOOM = 0;
 const MAX_ZOOM = 9;
 const CONFIG_FILE_NAME = 'config.json';
+const INITIAL_DATE_CONFIG_PARAMETER = 'start_date';
+const TIME_VALUES_CONFIG_PARAMETER = 'time_values';
 
 const MapWithRaster = () => {
     const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
@@ -47,20 +49,20 @@ const MapWithRaster = () => {
     }
 
     const getInitialDate = (): Date => {
-        return parseDate(config['start_date']);
+        return parseDate(config[INITIAL_DATE_CONFIG_PARAMETER]);
     }
 
     const getMinOffset = (): number => {
-        return config['time_values'][0];
+        return config[TIME_VALUES_CONFIG_PARAMETER][0];
     }
 
     const getMaxOffset = (): number => {
-        const timeValues = config['time_values'];
+        const timeValues = config[TIME_VALUES_CONFIG_PARAMETER];
         return timeValues[timeValues.length - 1];
     }
 
     const getStep = (): number => {
-        const timeValues = config['time_values'];
+        const timeValues = config[TIME_VALUES_CONFIG_PARAMETER];
         return timeValues[1] - timeValues[0];
     }
 
