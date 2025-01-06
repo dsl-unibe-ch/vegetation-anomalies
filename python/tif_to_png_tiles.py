@@ -189,7 +189,7 @@ def process_tiff_directory(input_directory, output_directory, zoom_levels):
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: python xyz_creator.py <input_file/input_directory> <output_directory> <zoom_levels>")
+        print("Usage: python tif_to_png_tiles.py <input_file/input_directory> <output_directory> <zoom_levels>")
         print("zoom_levels example: 0-18")
         sys.exit(1)
 

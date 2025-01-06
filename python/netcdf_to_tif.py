@@ -8,7 +8,7 @@ import numpy as np
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python netcdf_to_tif_converter.py <input_files...>")
+        print("Usage: python netcdf_to_tif.py <input_files...>")
         exit(1)
 
     # Data variable name
