@@ -56,7 +56,22 @@ The following command generates tiles from input_file to output_directory with t
 
 `python xyz_creator.py <input_file> <output_directory> <zoom_levels>`
 
-Where zoom_levels should be in the format: <from>-<to>, where from and to are integers and from <= to. A typical value would be "0-18".
+Where zoom_levels should be in the format: `<from>-<to>`, where from and to are integers and from <= to. 
+A typical value would be "0-13".
+
+## Direct Conversion from zarr to XYZ Tiles
+
+`python zar_to_png_tiles.py <zarr_folder> <output_folder> <zoom_levels> <processes> [<start_date_index>]`
+
+Where zoom_levels should be in the format: `<from>-<to>`, where from and to are integers and from <= to. 
+A typical value would be "0-13".
+
+processes indicates the number of parallel processes to use for tiling, 
+to speed up the computation.
+
+The optional start_date_index (0-based) parameter indicates from which date to start. 
+By default, it is set to 0, which means to start from the beginning. This parameter is useful to continue interrupted 
+tiles generation.
 
 # Running nginx Tiles Server
 
@@ -145,18 +160,3 @@ Run the following command.
 `npm run build`
 
 It will deploy all necessary files in the build folder. This folder can be copied to the production server.
-
-
-# TODO
-+ Contact the customer to show the demo.
-- We should go in direction of WMTS standard protocol for serving map tiles.
-- One TIF per date. Maybe?
-- Add documentation what libraries are used for each tool - the tech stack.
-+ Write requirements.txt - PIP format (pip freeze > requirements.txt - as the first step). pip install -r requirements.txt should work out of the box.
-- Write a script that runs the following command several times in parallel to speed up the Zarr to GTiff
-  conversion process.
-+ NGIX server with a configuration to fallback to an empty image can be used instead a custom server.
-+ Consider GeoServer: https://geoserver.org/, or https://github.com/reyemtm/wmts-server.
-    GeoServer request example:
-    WMS: http://localhost:8080/geoserver/vegetaion-anomalies/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=vegetaion-anomalies:anomalies_2018&format=image/tiff
-    WTMS: http://localhost:8080/geoserver/gwc/service/wmts?layer=vegetaion-anomalies:test-va2&tilematrixset=EPSG:4326&Service=WMTS&Request=GetTile&Version=1.1.1&Format=image/png&TileMatrix=EPSG:4326:1&TileCol=2&TileRow=0
