@@ -18,7 +18,7 @@ const MapWithRaster = () => {
     const [sliderAnomaliesOpacity, setSliderAnomaliesOpacity] = useState(0.8);
     const [daysOffset, setDaysOffset] = useState(0);
     const [sliderDaysOffset, setSliderDaysOffset] = useState(0);
-    const [initialDate, setInitialDate] = useState<Date | null>(null);
+    const [config, setConfig] = useState<any>(null)
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
     const formatDateWithOffset = (baseDate: Date | null, offsetDays: number, addHyphens: boolean): string => {
@@ -41,6 +41,29 @@ const MapWithRaster = () => {
         return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
 
+    // Parses string as date
+    const parseDate = (s: string): Date => {
+        return new Date(s.replace(' ', 'T'));
+    }
+
+    const getInitialDate = (): Date => {
+        return parseDate(config['start_date']);
+    }
+
+    const getMinOffset = (): number => {
+        return config['time_values'][0];
+    }
+
+    const getMaxOffset = (): number => {
+        const timeValues = config['time_values'];
+        return timeValues[timeValues.length - 1];
+    }
+
+    const getStep = (): number => {
+        const timeValues = config['time_values'];
+        return timeValues[1] - timeValues[0];
+    }
+
     useEffect(() => {
         fetch(`${anomaliesHost}/${CONFIG_FILE_NAME}`)
             .then((response: Response) => {
@@ -50,13 +73,13 @@ const MapWithRaster = () => {
                     throw response;
                 }
             })
-            .then((config) => {
-                setInitialDate(new Date(config['start_date'].replace(' ', 'T')));
+            .then((response: any) => {
+                setConfig(response);
             });
     }, []);
 
     useEffect(() => {
-        if (mapContainerRef.current) {
+        if (config && mapContainerRef.current) {
             const map = new maplibreGl.Map({
                 container: mapContainerRef.current as HTMLElement,
                 style: 'https://demotiles.maplibre.org/style.json',
@@ -104,7 +127,7 @@ const MapWithRaster = () => {
                     type: 'raster',
                     minzoom: MIN_ZOOM,
                     maxzoom: MAX_ZOOM,
-                    tiles: [getTileUrl(initialDate!, daysOffset)],
+                    tiles: [getTileUrl(getInitialDate(), daysOffset)],
                     tileSize: TILE_SIZE,
                 });
 
@@ -123,11 +146,11 @@ const MapWithRaster = () => {
 
             return (): void => map.remove();
         }
-    }, [initialDate]);
+    }, [config]);
 
     // Update layer opacity and anomalies layer source after map load
     useEffect(() => {
-        if (mapRef && mapRef.current && mapRef.current.isStyleLoaded()) {
+        if (config && mapRef && mapRef.current && mapRef.current.isStyleLoaded()) {
             // Update layer opacities
             mapRef.current.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
             mapRef.current.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
@@ -142,7 +165,7 @@ const MapWithRaster = () => {
             }
 
             // Add the anomalies source with the updated tile URL
-            const newTileUrl = getTileUrl(initialDate!, daysOffset);
+            const newTileUrl = getTileUrl(getInitialDate(), daysOffset);
             mapRef.current.addSource('anomalies-source', {
                 type: 'raster',
                 tiles: [newTileUrl],
@@ -159,9 +182,9 @@ const MapWithRaster = () => {
                 },
             });
         }
-    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, initialDate]);
+    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, config]);
 
-    return (
+    return (config &&
         <div>
             <div ref={mapContainerRef} id="map" />
 
@@ -210,12 +233,12 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(initialDate, sliderDaysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(getInitialDate(), sliderDaysOffset, true)}</label>
                     <input
                         type="range"
-                        min="0"
-                        max="360"
-                        step="5"
+                        min={getMinOffset()}
+                        max={getMaxOffset()}
+                        step={getStep()}
                         value={sliderDaysOffset}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setSliderDaysOffset(parseFloat(e.target.value))}
