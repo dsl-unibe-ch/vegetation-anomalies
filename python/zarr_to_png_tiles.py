@@ -69,15 +69,20 @@ def create_config_file(output_folder, **kwargs):
         json.dump(kwargs, f, default=str) # default=str is used to encode dates as simple strings
 
 
+def safe_get(lst, index):
+    return lst[index] if 0 <= index < len(lst) else None
+
+
 def main():
     if len(sys.argv) < 5:
-        print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes>")
+        print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes> [<start_date_index>]")
         sys.exit(1)
 
     zarr_folder = sys.argv[1]
     output_folder = sys.argv[2]
     zoom_levels = sys.argv[3]
     processes = int(sys.argv[4])
+    start_date_index = int(safe_get(sys.argv, 5) or 0)
 
     # Set PROJ_LIB dynamically based on Conda installation
     conda_prefix = os.environ.get('CONDA_PREFIX')
@@ -109,7 +114,7 @@ def main():
     colors_lookup_table = get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id)
 
     # Generate tiles with GDAL
-    for t in tqdm(range(zarr_dataset.data.shape[0])):
+    for t in tqdm(range(start_date_index, zarr_dataset.data.shape[0])):
         date = (start_date + timedelta(days=time_values[t].item())).strftime("%Y%m%d")
 
         # Read the 2D array for the current timestep
