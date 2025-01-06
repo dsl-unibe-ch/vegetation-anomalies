@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from datetime import datetime, timedelta
@@ -7,6 +8,7 @@ import zarr
 from osgeo import gdal, osr
 from tqdm import tqdm
 
+CONFIG_FILE_NAME = 'config.json'
 NEGATIVE_ANOMALY_COLOR = [204, 0, 0, 255]
 NO_ANOMALY_COLOR = [128, 128, 128, 255]
 POSITIVE_ANOMALY_COLOR = [0, 0, 204, 255]
@@ -61,7 +63,10 @@ def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, z
     dataset.SetProjection(srs.ExportToWkt())
     dataset.FlushCache()
 
-    return temp_tiff_path
+
+def create_config_file(output_folder, **kwargs):
+    with open(output_folder + '/' + CONFIG_FILE_NAME, 'w', encoding='utf-8') as f:
+        json.dump(kwargs, f, default=str) # default=str is used to encode dates as simple strings
 
 
 def main():
@@ -90,6 +95,9 @@ def main():
     y_values = zarr_dataset.N[:]
     time_values = zarr_dataset.time[:]
     start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
+
+    # Create config file for the UI to read from
+    create_config_file(output_folder, start_date=start_date, time_values=time_values.tolist())
 
     # Reading parameters from attributes of the Zarr format.
     zarr_crs = zattrs['crs']

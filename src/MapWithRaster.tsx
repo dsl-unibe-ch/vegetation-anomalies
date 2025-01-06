@@ -2,7 +2,10 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import maplibreGl from 'maplibre-gl';
 import './MapWithRaster.css'; // For styling the toolbox overlay
 
-const INITIAL_DATE = new Date(2023, 0, 4);
+const TILE_SIZE = 256;
+const MIN_ZOOM = 0;
+const MAX_ZOOM = 9;
+const CONFIG_FILE_NAME = 'config.json';
 
 const MapWithRaster = () => {
     const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
@@ -15,23 +18,42 @@ const MapWithRaster = () => {
     const [sliderAnomaliesOpacity, setSliderAnomaliesOpacity] = useState(0.8);
     const [daysOffset, setDaysOffset] = useState(0);
     const [sliderDaysOffset, setSliderDaysOffset] = useState(0);
+    const [initialDate, setInitialDate] = useState<Date | null>(null);
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
-    const formatDateWithOffset = (baseDate: Date, offsetDays: number, addHyphens: boolean): string => {
-        const date: Date = new Date(baseDate);
-        date.setDate(baseDate.getDate() + offsetDays);
-        const separator: string = addHyphens ? '-' : '';
-        return date.getFullYear().toString() +
-            separator +
-            (date.getMonth() + 1).toString().padStart(2, '0') +
-            separator +
-            date.getDate().toString().padStart(2, '0');
+    const formatDateWithOffset = (baseDate: Date | null, offsetDays: number, addHyphens: boolean): string => {
+        if (baseDate) {
+            const date: Date = new Date(baseDate);
+            date.setDate(baseDate.getDate() + offsetDays);
+            const separator: string = addHyphens ? '-' : '';
+            return date.getFullYear().toString() +
+                separator +
+                (date.getMonth() + 1).toString().padStart(2, '0') +
+                separator +
+                date.getDate().toString().padStart(2, '0');
+        } else {
+            return 'null';
+        }
     };
 
-    const getTileUrl = (daysOffset: number): string => {
-        const date: string = formatDateWithOffset(INITIAL_DATE, daysOffset, false);
+    const getTileUrl = (initialDate: Date, daysOffset: number): string => {
+        const date: string = formatDateWithOffset(initialDate, daysOffset, false);
         return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
+
+    useEffect(() => {
+        fetch(`${anomaliesHost}/${CONFIG_FILE_NAME}`)
+            .then((response: Response) => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw response;
+                }
+            })
+            .then((config) => {
+                setInitialDate(new Date(config['start_date'].replace(' ', 'T')));
+            });
+    }, []);
 
     useEffect(() => {
         if (mapContainerRef.current) {
@@ -39,7 +61,7 @@ const MapWithRaster = () => {
                 container: mapContainerRef.current as HTMLElement,
                 style: 'https://demotiles.maplibre.org/style.json',
                 center: [8.75, 47.47],
-                zoom: 13,
+                zoom: 9,
             });
 
             map.on('load', () => {
@@ -47,7 +69,7 @@ const MapWithRaster = () => {
                 map.addSource('osm-source', {
                     type: 'raster',
                     tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                    tileSize: 256,
+                    tileSize: TILE_SIZE,
                 });
 
                 map.addLayer({
@@ -65,7 +87,7 @@ const MapWithRaster = () => {
                     tiles: [
                         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     ],
-                    tileSize: 256,
+                    tileSize: TILE_SIZE,
                 });
 
                 map.addLayer({
@@ -80,10 +102,10 @@ const MapWithRaster = () => {
                 // Layer 3: Anomalies layer
                 map.addSource('anomalies-source', {
                     type: 'raster',
-                    minzoom: 0,
-                    maxzoom: 13,
-                    tiles: [getTileUrl(daysOffset)],
-                    tileSize: 256,
+                    minzoom: MIN_ZOOM,
+                    maxzoom: MAX_ZOOM,
+                    tiles: [getTileUrl(initialDate!, daysOffset)],
+                    tileSize: TILE_SIZE,
                 });
 
                 map.addLayer({
@@ -101,7 +123,7 @@ const MapWithRaster = () => {
 
             return (): void => map.remove();
         }
-    }, []);
+    }, [initialDate]);
 
     // Update layer opacity and anomalies layer source after map load
     useEffect(() => {
@@ -120,7 +142,7 @@ const MapWithRaster = () => {
             }
 
             // Add the anomalies source with the updated tile URL
-            const newTileUrl = getTileUrl(daysOffset);
+            const newTileUrl = getTileUrl(initialDate!, daysOffset);
             mapRef.current.addSource('anomalies-source', {
                 type: 'raster',
                 tiles: [newTileUrl],
@@ -137,7 +159,7 @@ const MapWithRaster = () => {
                 },
             });
         }
-    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset]);
+    }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, initialDate]);
 
     return (
         <div>
@@ -188,7 +210,7 @@ const MapWithRaster = () => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(INITIAL_DATE, sliderDaysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(initialDate, sliderDaysOffset, true)}</label>
                     <input
                         type="range"
                         min="0"
