@@ -1,15 +1,14 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import maplibreGl from 'maplibre-gl';
 import './MapWithRaster.css'; // For styling the toolbox overlay
 
 const TILE_SIZE = 256;
-const MIN_ZOOM = 0;
-const MAX_ZOOM = 9;
-const CONFIG_FILE_NAME = 'config.json';
+const CONFIG_FILE_NAME = 'metadata.json';
 const INITIAL_DATE_CONFIG_PARAMETER = 'start_date';
 const TIME_VALUES_CONFIG_PARAMETER = 'time_values';
+const ZOOM_LEVELS_CONFIG_PARAMETER = 'zoom_levels';
 
-const MapWithRaster = () => {
+const MapWithRaster = (): any => {
     const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const [osmOpacity, setOsmOpacity] = useState(1.0);
@@ -80,6 +79,35 @@ const MapWithRaster = () => {
             });
     }, []);
 
+    function addAnomaliesLayer(map: maplibreGl.Map, tileUrl: string) {
+        // Remove existing anomalies layer and source
+        if (map.getLayer('anomalies-layer')) {
+            map.removeLayer('anomalies-layer');
+        }
+        if (map.getSource('anomalies-source')) {
+            map.removeSource('anomalies-source');
+        }
+
+        const zoomLevels: Array<number> = config[ZOOM_LEVELS_CONFIG_PARAMETER];
+        // Layer 3: Anomalies layer
+        map.addSource('anomalies-source', {
+            type: 'raster',
+            minzoom: zoomLevels[0],
+            maxzoom: zoomLevels[1],
+            tiles: [tileUrl],
+            tileSize: TILE_SIZE,
+        });
+
+        map.addLayer({
+            id: 'anomalies-layer',
+            type: 'raster',
+            source: 'anomalies-source',
+            paint: {
+                'raster-opacity': anomaliesOpacity,
+            },
+        });
+    }
+
     useEffect(() => {
         if (config && mapContainerRef.current) {
             const map = new maplibreGl.Map({
@@ -124,23 +152,7 @@ const MapWithRaster = () => {
                     },
                 });
 
-                // Layer 3: Anomalies layer
-                map.addSource('anomalies-source', {
-                    type: 'raster',
-                    minzoom: MIN_ZOOM,
-                    maxzoom: MAX_ZOOM,
-                    tiles: [getTileUrl(getInitialDate(), daysOffset)],
-                    tileSize: TILE_SIZE,
-                });
-
-                map.addLayer({
-                    id: 'anomalies-layer',
-                    type: 'raster',
-                    source: 'anomalies-source',
-                    paint: {
-                        'raster-opacity': anomaliesOpacity,
-                    },
-                });
+                addAnomaliesLayer(map, getTileUrl(getInitialDate(), daysOffset));
 
                 // Save map reference after loading is complete
                 mapRef.current = map;
@@ -154,35 +166,13 @@ const MapWithRaster = () => {
     useEffect(() => {
         if (config && mapRef && mapRef.current && mapRef.current.isStyleLoaded()) {
             // Update layer opacities
-            mapRef.current.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
-            mapRef.current.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
-            mapRef.current.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
+            const map: maplibreGl.Map = mapRef.current;
 
-            // Remove existing anomalies layer and source
-            if (mapRef.current.getLayer('anomalies-layer')) {
-                mapRef.current.removeLayer('anomalies-layer');
-            }
-            if (mapRef.current.getSource('anomalies-source')) {
-                mapRef.current.removeSource('anomalies-source');
-            }
+            map.setPaintProperty('osm-layer', 'raster-opacity', osmOpacity);
+            map.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
+            map.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
 
-            // Add the anomalies source with the updated tile URL
-            const newTileUrl = getTileUrl(getInitialDate(), daysOffset);
-            mapRef.current.addSource('anomalies-source', {
-                type: 'raster',
-                tiles: [newTileUrl],
-                tileSize: 256,
-            });
-
-            // Add the anomalies layer back to the map
-            mapRef.current.addLayer({
-                id: 'anomalies-layer',
-                type: 'raster',
-                source: 'anomalies-source',
-                paint: {
-                    'raster-opacity': anomaliesOpacity,
-                },
-            });
+            addAnomaliesLayer(map, getTileUrl(getInitialDate(), daysOffset));
         }
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, config]);
 

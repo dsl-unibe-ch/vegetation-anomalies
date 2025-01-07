@@ -8,7 +8,7 @@ import zarr
 from osgeo import gdal, osr
 from tqdm import tqdm
 
-CONFIG_FILE_NAME = 'config.json'
+CONFIG_FILE_NAME = 'metadata.json'
 NEGATIVE_ANOMALY_COLOR = [204, 0, 0, 255]
 NO_ANOMALY_COLOR = [128, 128, 128, 255]
 POSITIVE_ANOMALY_COLOR = [0, 0, 204, 255]
@@ -73,6 +73,18 @@ def safe_get(lst, index):
     return lst[index] if 0 <= index < len(lst) else None
 
 
+def parse_zoom_levels(zoom_levels):
+    # Get the values from the zoom levels string
+    zoom_levels_list = list(map(int, zoom_levels.split('-')))
+
+    # Check for correctness
+    if len(zoom_levels_list) != 2:
+        raise RuntimeError("There should be exactly two zoom levels in the format <from>-<to>")
+    if zoom_levels_list[0] > zoom_levels_list[1]:
+        raise RuntimeError("Zoom level from should not be greater than to")
+    return zoom_levels_list
+
+
 def main():
     if len(sys.argv) < 5:
         print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes> [<start_date_index>]")
@@ -102,7 +114,10 @@ def main():
     start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
 
     # Create config file for the UI to read from
-    create_config_file(output_folder, start_date=start_date, time_values=time_values.tolist())
+    create_config_file(output_folder, start_date=start_date, time_values=time_values.tolist(),
+                       zoom_levels=parse_zoom_levels(zoom_levels),
+                       negative_anomaly_color=NEGATIVE_ANOMALY_COLOR, no_anomaly_color=NO_ANOMALY_COLOR,
+                       positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
 
     # Reading parameters from attributes of the Zarr format.
     zarr_crs = zattrs['crs']
