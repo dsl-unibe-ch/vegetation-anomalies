@@ -104,7 +104,18 @@ const MapWithRaster = (): any => {
             source: 'anomalies-source',
             paint: {
                 'raster-opacity': anomaliesOpacity,
+                'raster-resampling': 'nearest', // Disable anti-aliasing
             },
+        });
+
+        // Handle zoom events to dynamically adjust anti-aliasing if needed
+        map.on('zoom', () => {
+            const zoom = map.getZoom();
+            if (zoom > zoomLevels[1]) {
+                map.setPaintProperty('anomalies-layer', 'raster-resampling', 'nearest');
+            } else {
+                map.setPaintProperty('anomalies-layer', 'raster-resampling', 'linear');
+            }
         });
     }
 
