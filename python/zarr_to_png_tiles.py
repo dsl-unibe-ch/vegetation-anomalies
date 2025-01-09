@@ -14,6 +14,8 @@ NO_ANOMALY_COLOR = [128, 128, 128, 255]
 POSITIVE_ANOMALY_COLOR = [0, 0, 204, 255]
 NO_DATA_COLOR = [0, 0, 0, 0]
 
+WEB_MERCATOR_CRS = 'EPSG:3857'
+
 # Function to map values to a color ramp
 def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
     colors = np.array(colors_lookup_table, dtype=np.uint8)
@@ -40,7 +42,7 @@ def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive
     return colors_lookup_table
 
 
-def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, zarr_crs):
+def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, source_crs, target_crs):
     # Save the RGBA data to a temporary GeoTIFF
     driver = gdal.GetDriverByName("GTiff")
     dataset = driver.Create(temp_tiff_path, data.shape[1], data.shape[0], 4, gdal.GDT_Byte)
@@ -48,20 +50,35 @@ def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, z
     for band in range(4):
         dataset.GetRasterBand(band + 1).WriteArray(rgba_data[:, :, band])
 
+    transform = compute_transform(x_values, y_values)
+    dataset.SetGeoTransform(transform)
+
+    # Set spatial reference
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(int(source_crs.split(':')[1]))
+    dataset.SetProjection(srs.ExportToWkt())
+    dataset.FlushCache()
+
+    # Reproject the GeoTIFF to a new target CRS using gdalwarp
+    reprojected_tiff_path = temp_tiff_path.replace(".tif", "_reprojected.tif")
+    gdal.Warp(
+        reprojected_tiff_path,
+        dataset,
+        dstSRS=target_crs,
+        resampleAlg=gdal.GRA_NearestNeighbour
+    )
+
+    return reprojected_tiff_path
+
+
+def compute_transform(x_values, y_values):
     x_min = x_values.min()
     y_min = y_values.min()
     x_max = x_values.max()
     y_max = y_values.max()
-
     pixel_width = (x_max - x_min) / len(x_values)
     pixel_height = (y_max - y_min) / len(y_values)
-    dataset.SetGeoTransform([x_min, pixel_width, 0, y_max, 0, -pixel_height])
-
-    # Set spatial reference
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(int(zarr_crs.split(':')[1]))
-    dataset.SetProjection(srs.ExportToWkt())
-    dataset.FlushCache()
+    return [x_min, pixel_width, 0, y_max, 0, -pixel_height]
 
 
 def create_config_file(output_folder, **kwargs):
@@ -137,16 +154,19 @@ def main():
 
         rgba_data = map_value_to_color_cpu(data, colors_lookup_table, NO_DATA_COLOR)
 
+        # Create temporary GeoTIFF as an intermediary step
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
-        create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, zarr_crs)
+        reprojected_temp_tiff_path = create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values,
+                                                           zarr_crs, WEB_MERCATOR_CRS)
 
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
         os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f'gdal2tiles.py -s {zarr_crs} -z {zoom_levels} -w none --processes={processes} --xyz -x {temp_tiff_path} -r near {tile_output_dir}')
+        os.system(f'gdal2tiles.py -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {reprojected_temp_tiff_path} {tile_output_dir}')
 
         # Remove the temporary GeoTIFF
         os.remove(temp_tiff_path)
+        os.remove(reprojected_temp_tiff_path)
 
     print("PNG image pyramids generated successfully.")
 
