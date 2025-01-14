@@ -187,6 +187,8 @@ const MapWithRaster = (): any => {
         }
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, config]);
 
+    const timeValues: Array<number> = config && config[TIME_VALUES_CONFIG_PARAMETER]
+
     return (config &&
         <div>
             <div ref={mapContainerRef} id="map" />
@@ -236,17 +238,17 @@ const MapWithRaster = (): any => {
                     />
                 </div>
                 <div className="slider-container">
-                    <label>Date: {formatDateWithOffset(getInitialDate(), sliderDaysOffset, true)}</label>
+                    <label>Date: {formatDateWithOffset(getInitialDate(), timeValues[sliderDaysOffset], true)}</label>
                     <input
                         type="range"
-                        min={getMinOffset()}
-                        max={getMaxOffset()}
-                        step={getStep()}
+                        min={0}
+                        max={timeValues.length - 1}
+                        step={1}
                         value={sliderDaysOffset}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setSliderDaysOffset(parseFloat(e.target.value))}
-                        onMouseUp={() => setDaysOffset(sliderDaysOffset)}
-                        onKeyUp={() => setDaysOffset(sliderDaysOffset)}
+                        onMouseUp={() => setDaysOffset(timeValues[sliderDaysOffset])}
+                        onKeyUp={() => setDaysOffset(timeValues[sliderDaysOffset])}
                     />
                 </div>
             </div>
