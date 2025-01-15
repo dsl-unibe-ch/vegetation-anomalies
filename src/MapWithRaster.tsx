@@ -25,6 +25,7 @@ const MapWithRaster = (): any => {
     const [config, setConfig] = useState<any>(null)
     const mapRef = useRef<maplibreGl.Map | null>(null);
 
+    // Format date plus an offset in days as string
     const formatDateWithOffset = (baseDate: Date | null, offsetDays: number, addHyphens: boolean): string => {
         if (baseDate) {
             const date: Date = new Date(baseDate);
@@ -40,39 +41,29 @@ const MapWithRaster = (): any => {
         }
     };
 
-    const getTileUrl = (initialDate: Date, daysOffset: number): string => {
+    // Get URL for anomalies tiles
+    const getAnomaliesTileUrl = (initialDate: Date, daysOffset: number): string => {
         const date: string = formatDateWithOffset(initialDate, daysOffset, false);
         return `${anomaliesHost}/${date}/{z}/{x}/{y}.png`;
     };
 
-    // Parses string as date
+    // Parse string as date
     const parseDate = (s: string): Date => {
         return new Date(s.replace(' ', 'T'));
     }
 
+    // Get the starting date from config
     const getInitialDate = (): Date => {
         return parseDate(config[INITIAL_DATE_CONFIG_PARAMETER]);
     }
 
-    const getRgbaCssFunction = (color: Array<number>): string => {
+    // Create rgb() function string for CSS from the array of RGBA values
+    const getRgbCssFunction = (color: Array<number>): string => {
         return `rgba(${color[0]} ${color[1]} ${color[2]} / ${color[3]})`
     }
 
-    useEffect(() => {
-        fetch(`${anomaliesHost}/${CONFIG_FILE_NAME}`)
-            .then((response: Response) => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw response;
-                }
-            })
-            .then((response: any) => {
-                setConfig(response);
-            });
-    }, []);
-
-    function addAnomaliesLayer(map: maplibreGl.Map, tileUrl: string) {
+    // Add anomalies layer on the map with the specified tiles URL
+    const addAnomaliesLayer = (map: maplibreGl.Map, tileUrl: string) => {
         // Remove existing anomalies layer and source
         if (map.getLayer('anomalies-layer')) {
             map.removeLayer('anomalies-layer');
@@ -110,7 +101,21 @@ const MapWithRaster = (): any => {
                 map.setPaintProperty('anomalies-layer', 'raster-resampling', 'linear');
             }
         });
-    }
+    };
+
+    useEffect(() => {
+        fetch(`${anomaliesHost}/${CONFIG_FILE_NAME}`)
+            .then((response: Response) => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw response;
+                }
+            })
+            .then((response: any) => {
+                setConfig(response);
+            });
+    }, []);
 
     useEffect(() => {
         if (config && mapContainerRef.current) {
@@ -156,7 +161,7 @@ const MapWithRaster = (): any => {
                     },
                 });
 
-                addAnomaliesLayer(map, getTileUrl(getInitialDate(), daysOffset));
+                addAnomaliesLayer(map, getAnomaliesTileUrl(getInitialDate(), daysOffset));
 
                 // Save map reference after loading is complete
                 mapRef.current = map;
@@ -176,7 +181,7 @@ const MapWithRaster = (): any => {
             map.setPaintProperty('satellite-layer', 'raster-opacity', satelliteOpacity);
             map.setPaintProperty('anomalies-layer', 'raster-opacity', anomaliesOpacity);
 
-            addAnomaliesLayer(map, getTileUrl(getInitialDate(), daysOffset));
+            addAnomaliesLayer(map, getAnomaliesTileUrl(getInitialDate(), daysOffset));
         }
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, config]);
 
@@ -191,15 +196,15 @@ const MapWithRaster = (): any => {
 
             <div className="box legend">
                 <div className="legend-item">
-                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(negativeAnomalyColor)}}></span>
+                    <span className="color-box" style={{backgroundColor: getRgbCssFunction(negativeAnomalyColor)}}></span>
                     <span>Negative Anomaly</span>
                 </div>
                 <div className="legend-item">
-                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(noAnomalyColor)}}></span>
+                    <span className="color-box" style={{backgroundColor: getRgbCssFunction(noAnomalyColor)}}></span>
                     <span>No Anomaly</span>
                 </div>
                 <div className="legend-item">
-                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(positiveAnomalyColor)}}></span>
+                    <span className="color-box" style={{backgroundColor: getRgbCssFunction(positiveAnomalyColor)}}></span>
                     <span>Positive Anomaly</span>
                 </div>
             </div>
