@@ -7,6 +7,9 @@ const CONFIG_FILE_NAME = 'metadata.json';
 const INITIAL_DATE_CONFIG_PARAMETER = 'start_date';
 const TIME_VALUES_CONFIG_PARAMETER = 'time_values';
 const ZOOM_LEVELS_CONFIG_PARAMETER = 'zoom_levels';
+const NEGATIVE_ANOMALY_COLOR_CONFIG_PARAMETER = 'negative_anomaly_color';
+const NO_ANOMALY_COLOR_CONFIG_PARAMETER = 'no_anomaly_color';
+const POSITIVE_ANOMALY_COLOR_CONFIG_PARAMETER = 'positive_anomaly_color';
 
 const MapWithRaster = (): any => {
     const anomaliesHost: string | undefined = process.env.REACT_APP_ANOMALIES_MAPS_API_URL;
@@ -51,18 +54,8 @@ const MapWithRaster = (): any => {
         return parseDate(config[INITIAL_DATE_CONFIG_PARAMETER]);
     }
 
-    const getMinOffset = (): number => {
-        return config[TIME_VALUES_CONFIG_PARAMETER][0];
-    }
-
-    const getMaxOffset = (): number => {
-        const timeValues = config[TIME_VALUES_CONFIG_PARAMETER];
-        return timeValues[timeValues.length - 1];
-    }
-
-    const getStep = (): number => {
-        const timeValues = config[TIME_VALUES_CONFIG_PARAMETER];
-        return timeValues[1] - timeValues[0];
+    const getRgbaCssFunction = (color: Array<number>): string => {
+        return `rgba(${color[0]} ${color[1]} ${color[2]} / ${color[3]})`
     }
 
     useEffect(() => {
@@ -188,13 +181,30 @@ const MapWithRaster = (): any => {
     }, [osmOpacity, satelliteOpacity, anomaliesOpacity, daysOffset, config]);
 
     const timeValues: Array<number> = config && config[TIME_VALUES_CONFIG_PARAMETER]
+    const negativeAnomalyColor: Array<number> = config && config[NEGATIVE_ANOMALY_COLOR_CONFIG_PARAMETER]
+    const noAnomalyColor: Array<number> = config && config[NO_ANOMALY_COLOR_CONFIG_PARAMETER]
+    const positiveAnomalyColor: Array<number> = config && config[POSITIVE_ANOMALY_COLOR_CONFIG_PARAMETER]
 
     return (config &&
         <div>
-            <div ref={mapContainerRef} id="map" />
+            <div ref={mapContainerRef} id="map"/>
 
-            <div className="toolbox">
-                <h3>Layer Controls</h3>
+            <div className="box legend">
+                <div className="legend-item">
+                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(negativeAnomalyColor)}}></span>
+                    <span>Negative Anomaly</span>
+                </div>
+                <div className="legend-item">
+                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(noAnomalyColor)}}></span>
+                    <span>No Anomaly</span>
+                </div>
+                <div className="legend-item">
+                    <span className="color-box" style={{backgroundColor: getRgbaCssFunction(positiveAnomalyColor)}}></span>
+                    <span>Positive Anomaly</span>
+                </div>
+            </div>
+
+            <div className="box toolbox">
                 <div className="slider-container">
                     <label>OSM Layer Opacity: {sliderOsmOpacity}</label>
                     <input
