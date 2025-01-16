@@ -193,8 +193,8 @@ def main():
     x_values = zarr_dataset['E'][:]
     y_values = zarr_dataset['N'][:]
     transform = compute_transform(x_values, y_values)
-    time_values = zarr_dataset.time[:]
-    start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
+    time_values = zarr_dataset['time'][:]
+    start_date = datetime.strptime(zarr_dataset['time']['attrs']['units'], 'days since %Y-%m-%d')
 
     # Create config file for the UI to read from
     create_json_file(output_folder, start_date=start_date, time_values=time_values.tolist(),
@@ -203,7 +203,7 @@ def main():
                      positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
 
     # Reading parameters from attributes of the Zarr format.
-    zarr_attrs = zarr_dataset.attrs
+    zarr_attrs = zarr_dataset['attrs']
     zarr_crs = zarr_attrs['crs']
     missing_id = int(zarr_attrs['missing_id'])
     negative_anomaly_id = int(zarr_attrs['negative_anomaly_id'])
@@ -213,11 +213,11 @@ def main():
     colors_lookup_table = get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id)
 
     # Generate tiles with GDAL
-    for t in tqdm(range(start_date_index, zarr_dataset.data.shape[0])):
+    for t in tqdm(range(start_date_index, zarr_dataset['data'].shape[0])):
         date = (start_date + timedelta(days=time_values[t].item())).strftime("%Y%m%d")
 
         # Read the 2D array for the current timestep
-        data = zarr_dataset.data[t, :, :]
+        data = zarr_dataset['data'][t, :, :]
 
         # Create temporary GeoTIFF as an intermediary step
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
