@@ -114,7 +114,7 @@ def compute_transform(x_values, y_values):
 
     :param x_values: Input X values.
     :param y_values: Input Y values.
-    :return: geo-transformation array of format [x_min, pixel_width, 0, y_max, 0, -pixel_height].
+    :return: Geo-transformation array of format [x_min, pixel_width, 0, y_max, 0, -pixel_height].
     """
     x_min = x_values.min()
     y_min = y_values.min()
@@ -137,11 +137,23 @@ def create_json_file(output_folder, **kwargs):
 
 
 def safe_get(lst, index):
+    """
+    Safely gets an element from a list.
+
+    :param lst: List to probe for the element.
+    :param index: Index of the element to probe.
+    :return: lst[index] if the value is not outside the range, otherwise None.
+    """
     return lst[index] if 0 <= index < len(lst) else None
 
 
 def parse_zoom_levels(zoom_levels):
-    # Get the values from the zoom levels string
+    """
+    Gets the values from the zoom levels string
+
+    :param zoom_levels: Input string of format <from>-<to>, where from <= to are integer values.
+    :return: List with two parsed values from the string as integers.
+    """
     zoom_levels_list = list(map(int, zoom_levels.split('-')))
 
     # Check for correctness
@@ -153,6 +165,10 @@ def parse_zoom_levels(zoom_levels):
 
 
 def main():
+    """
+    Application entry point.
+    """
+
     if len(sys.argv) < 5:
         print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes> [<start_date_index>]")
         sys.exit(1)
@@ -206,6 +222,7 @@ def main():
         # Create temporary GeoTIFF as an intermediary step
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
         temp_tiff_path_reprojected = temp_tiff_path.replace(".tif", "_reprojected.tif")
+
 
         create_tiff(data, temp_tiff_path, colors_lookup_table, transform, zarr_crs)
         reproject_riff(temp_tiff_path, temp_tiff_path_reprojected, WEB_MERCATOR_CRS)
