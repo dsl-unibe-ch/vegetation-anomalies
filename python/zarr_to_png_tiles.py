@@ -190,8 +190,8 @@ def main():
     # Open the Zarr array
     zarr_dataset = zarr.open(zarr_folder, mode='r')
 
-    x_values = zarr_dataset.E[:]
-    y_values = zarr_dataset.N[:]
+    x_values = zarr_dataset['E'][:]
+    y_values = zarr_dataset['N'][:]
     transform = compute_transform(x_values, y_values)
     time_values = zarr_dataset.time[:]
     start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
