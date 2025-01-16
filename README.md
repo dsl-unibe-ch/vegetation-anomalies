@@ -4,7 +4,7 @@
 
 ### Motivation
 
-To be able to set up GDAL without relying on the libraries installed at the OS level a Conda environment has to me used.
+To be able to set up GDAL without relying on the libraries installed at the OS level a Conda environment has to be used.
 
 ### Miniconda
 
