@@ -16,8 +16,15 @@ NO_DATA_COLOR = [0, 0, 0, 0]
 
 WEB_MERCATOR_CRS = 'EPSG:3857'
 
-# Function to map values to a color ramp
 def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
+    """
+    Function to map values to a list of colors.
+
+    :param value: 2D array of initial numerical values to map from.
+    :param colors_lookup_table: Lookup list to do the following mapping: index -> colors_lookup_table[index].
+    :param no_data_color: Color to use when there are no data.
+    :return: 2D array of mapped colors.
+    """
     colors = np.array(colors_lookup_table, dtype=np.uint8)
     default_color = np.array(no_data_color, dtype=np.uint8)  # No data (value = 255) - transparent
 
@@ -26,7 +33,7 @@ def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
 
     # Mask valid indices and map them to the appropriate colors
     mask = (value >= 0) & (value < 3) # Boolean mask, with True values everywhere, where the condition holds
-    # Assign to those values of result 3d array, where mask=True, and those should be the colors of the initial values,
+    # Assign to those values of result 3D array, where mask=True, and those should be the colors of the initial values,
     # where mask=True. This means that we are assigning the colors, corresponding to the non-empty values.
     result[mask] = colors[value[mask]]
 
@@ -34,6 +41,16 @@ def map_value_to_color_cpu(value, colors_lookup_table, no_data_color):
 
 
 def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id):
+    """
+    Creates a lookup table to do the mapping index -> colors_lookup_table[index]. The IDs in the parameters correspond
+    to indices in the result.
+
+    :param missing_id: Value that indicates no data at the location.
+    :param negative_anomaly_id: Value that indicates negative anomaly the location.
+    :param normal_id: Value that indicates no anomaly the location.
+    :param positive_anomaly_id: Value that indicates positive anomaly the location.
+    :return: Mapped result index -> colors_lookup_table[index].
+    """
     colors_lookup_table = [NO_DATA_COLOR] * 256
     colors_lookup_table[missing_id] = NO_DATA_COLOR
     colors_lookup_table[negative_anomaly_id] = NEGATIVE_ANOMALY_COLOR
@@ -42,15 +59,26 @@ def get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive
     return colors_lookup_table
 
 
-def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, source_crs, target_crs):
+def create_tiff(data, tiff_path, colors_lookup_table, transform, source_crs):
+    """
+    Creates GeoTIFF for data by mapping them to colors and saving into a file.
+
+    :param data: Data to be saved.
+    :param tiff_path: Path to the file save the data at.
+    :param colors_lookup_table Lookup table in format index -> colors_lookup_table[index].
+    :param transform: Geotransform computed from all initial values.
+    :param source_crs: Coordinate reference system to be assigned to the resulting dataset.
+    :return: Dataset with the GeoTIFF data.
+    """
     # Save the RGBA data to a temporary GeoTIFF
     driver = gdal.GetDriverByName("GTiff")
-    dataset = driver.Create(temp_tiff_path, data.shape[1], data.shape[0], 4, gdal.GDT_Byte)
+    dataset = driver.Create(tiff_path, data.shape[1], data.shape[0], 4, gdal.GDT_Byte)
+
+    rgba_data = map_value_to_color_cpu(data, colors_lookup_table, NO_DATA_COLOR)
 
     for band in range(4):
         dataset.GetRasterBand(band + 1).WriteArray(rgba_data[:, :, band])
 
-    transform = compute_transform(x_values, y_values)
     dataset.SetGeoTransform(transform)
 
     # Set spatial reference
@@ -59,19 +87,35 @@ def create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values, s
     dataset.SetProjection(srs.ExportToWkt())
     dataset.FlushCache()
 
-    # Reproject the GeoTIFF to a new target CRS using gdalwarp
-    reprojected_tiff_path = temp_tiff_path.replace(".tif", "_reprojected.tif")
+    return dataset
+
+
+def reproject_riff(dataset, target_tiff_path, target_crs):
+    """
+    Reprojects GeoTIFF to a new target CRS using gdal.Warp(). Used the nearest neighbour algorithm to avoid
+    antialiasing.
+
+    :param dataset: GeoTIFF dataset to reproject from.
+    :param target_tiff_path: Path to the target file.
+    :param target_crs: Coordinate reference system to be assigned to the resulting dataset.
+    """
+
     gdal.Warp(
-        reprojected_tiff_path,
+        target_tiff_path,
         dataset,
         dstSRS=target_crs,
         resampleAlg=gdal.GRA_NearestNeighbour
     )
 
-    return reprojected_tiff_path
-
 
 def compute_transform(x_values, y_values):
+    """
+    Computes the geo-transformation array from X and Y values, that can be used in the gdal.Warp() method indirectly.
+
+    :param x_values: Input X values.
+    :param y_values: Input Y values.
+    :return: geo-transformation array of format [x_min, pixel_width, 0, y_max, 0, -pixel_height].
+    """
     x_min = x_values.min()
     y_min = y_values.min()
     x_max = x_values.max()
@@ -81,7 +125,13 @@ def compute_transform(x_values, y_values):
     return [x_min, pixel_width, 0, y_max, 0, -pixel_height]
 
 
-def create_config_file(output_folder, **kwargs):
+def create_json_file(output_folder, **kwargs):
+    """
+    Creates a JSON file in a folder with the specified map of values.
+
+    :param output_folder: the folder to create the file at.
+    :param kwargs: Keyword arguments to be dumped to the config JSON file.
+    """
     with open(output_folder + '/' + CONFIG_FILE_NAME, 'w', encoding='utf-8') as f:
         json.dump(kwargs, f, default=str) # default=str is used to encode dates as simple strings
 
@@ -124,24 +174,25 @@ def main():
     # Open the Zarr array
     zarr_dataset = zarr.open(zarr_folder, mode='r')
 
-    zattrs = zarr_dataset.attrs
     x_values = zarr_dataset.E[:]
     y_values = zarr_dataset.N[:]
+    transform = compute_transform(x_values, y_values)
     time_values = zarr_dataset.time[:]
     start_date = datetime.strptime(zarr_dataset.time.attrs['units'], 'days since %Y-%m-%d')
 
     # Create config file for the UI to read from
-    create_config_file(output_folder, start_date=start_date, time_values=time_values.tolist(),
-                       zoom_levels=parse_zoom_levels(zoom_levels),
-                       negative_anomaly_color=NEGATIVE_ANOMALY_COLOR, no_anomaly_color=NO_ANOMALY_COLOR,
-                       positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
+    create_json_file(output_folder, start_date=start_date, time_values=time_values.tolist(),
+                     zoom_levels=parse_zoom_levels(zoom_levels),
+                     negative_anomaly_color=NEGATIVE_ANOMALY_COLOR, no_anomaly_color=NO_ANOMALY_COLOR,
+                     positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
 
     # Reading parameters from attributes of the Zarr format.
-    zarr_crs = zattrs['crs']
-    missing_id = int(zattrs['missing_id'])
-    negative_anomaly_id = int(zattrs['negative_anomaly_id'])
-    normal_id = int(zattrs['normal_id'])
-    positive_anomaly_id = int(zattrs['positive_anomaly_id'])
+    zarr_attrs = zarr_dataset.attrs
+    zarr_crs = zarr_attrs['crs']
+    missing_id = int(zarr_attrs['missing_id'])
+    negative_anomaly_id = int(zarr_attrs['negative_anomaly_id'])
+    normal_id = int(zarr_attrs['normal_id'])
+    positive_anomaly_id = int(zarr_attrs['positive_anomaly_id'])
 
     colors_lookup_table = get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id)
 
@@ -152,21 +203,21 @@ def main():
         # Read the 2D array for the current timestep
         data = zarr_dataset.data[t, :, :]
 
-        rgba_data = map_value_to_color_cpu(data, colors_lookup_table, NO_DATA_COLOR)
-
         # Create temporary GeoTIFF as an intermediary step
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
-        reprojected_temp_tiff_path = create_temporary_tiff(data, temp_tiff_path, rgba_data, x_values, y_values,
-                                                           zarr_crs, WEB_MERCATOR_CRS)
+        temp_tiff_path_reprojected = temp_tiff_path.replace(".tif", "_reprojected.tif")
+
+        create_tiff(data, temp_tiff_path, colors_lookup_table, transform, zarr_crs)
+        reproject_riff(temp_tiff_path, temp_tiff_path_reprojected, WEB_MERCATOR_CRS)
 
         # Use gdal2tiles to generate tiles from the temporary GeoTIFF
         tile_output_dir = os.path.join(output_folder, date)
         os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f'gdal2tiles.py -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {reprojected_temp_tiff_path} {tile_output_dir}')
+        os.system(f'gdal2tiles.py -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {temp_tiff_path_reprojected} {tile_output_dir}')
 
         # Remove the temporary GeoTIFF
         os.remove(temp_tiff_path)
-        os.remove(reprojected_temp_tiff_path)
+        os.remove(temp_tiff_path_reprojected)
 
     print("PNG image pyramids generated successfully.")
 
