@@ -194,7 +194,7 @@ def main():
     y_values = zarr_dataset['N'][:]
     transform = compute_transform(x_values, y_values)
     time_values = zarr_dataset['time'][:]
-    start_date = datetime.strptime(zarr_dataset['time']['attrs']['units'], 'days since %Y-%m-%d')
+    start_date = datetime.strptime(zarr_dataset['time'].attrs['units'], 'days since %Y-%m-%d')
 
     # Create config file for the UI to read from
     create_json_file(output_folder, start_date=start_date, time_values=time_values.tolist(),
@@ -203,7 +203,7 @@ def main():
                      positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
 
     # Reading parameters from attributes of the Zarr format.
-    zarr_attrs = zarr_dataset['attrs']
+    zarr_attrs = zarr_dataset.attrs
     zarr_crs = zarr_attrs['crs']
     missing_id = int(zarr_attrs['missing_id'])
     negative_anomaly_id = int(zarr_attrs['negative_anomaly_id'])
