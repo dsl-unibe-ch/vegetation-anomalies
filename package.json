@@ -1,6 +1,6 @@
 {
   "name": "vegetation-anomalies",
-  "homepage": "https://vm2.dsl.unibe.ch/anomalies_map/",
+  "homepage": "https://ndvi-anomalies.dsl.unibe.ch/",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
