@@ -59,7 +59,7 @@ const MapWithRaster = (): any => {
 
     // Create rgb() function string for CSS from the array of RGBA values
     const getRgbCssFunction = (color: Array<number>): string => {
-        return `rgba(${color[0]} ${color[1]} ${color[2]} / ${color[3]})`
+        return `rgb(${color[0]} ${color[1]} ${color[2]} / ${color[3]})`
     }
 
     // Add anomalies layer on the map with the specified tiles URL

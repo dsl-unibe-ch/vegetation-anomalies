@@ -12,8 +12,11 @@ To install Miniconda - the more light-weight Conda environment - use the followi
 `~/miniconda3` to a different one, if you prefer to have the installation in a different location.
 
 `mkdir ~/miniconda3`
+
 `wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh`
+
 `bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3`
+
 `rm ~/miniconda3/miniconda.sh`
 
 To activate Miniconda in the current shell use the following command:
@@ -45,8 +48,7 @@ Go to the `python` directory of the project and install the needed requirements 
 Where zoom_levels should be in the format: `<from>-<to>`, where from and to are integers and from <= to. 
 A typical value would be "0-13".
 
-processes indicates the number of parallel processes to use for tiling, 
-to speed up the computation.
+processes indicates the number of parallel processes to use for tiling to speed up the computation.
 
 The optional start_date_index (0-based) parameter indicates from which date to start. 
 By default, it is set to 0, which means to start from the beginning. This parameter is useful to continue interrupted 

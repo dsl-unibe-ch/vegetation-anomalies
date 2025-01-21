@@ -110,7 +110,7 @@ def reproject_riff(dataset, target_tiff_path, target_crs):
 
 def compute_transform(x_values, y_values):
     """
-    Computes the geo-transformation array from X and Y values, that can be used in the gdal.Warp() method indirectly.
+    Computes the geo-transformation array from X and Y values that can be used in the gdal.Warp() method indirectly.
 
     :param x_values: Input X values.
     :param y_values: Input Y values.
@@ -223,7 +223,6 @@ def main():
         temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
         temp_tiff_path_reprojected = temp_tiff_path.replace(".tif", "_reprojected.tif")
 
-
         create_tiff(data, temp_tiff_path, colors_lookup_table, transform, zarr_crs)
         reproject_riff(temp_tiff_path, temp_tiff_path_reprojected, WEB_MERCATOR_CRS)
 
@@ -232,7 +231,7 @@ def main():
         os.makedirs(tile_output_dir, exist_ok=True)
         os.system(f'gdal2tiles.py -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {temp_tiff_path_reprojected} {tile_output_dir}')
 
-        # Remove the temporary GeoTIFF
+        # Remove the temporary GeoTIFFs
         os.remove(temp_tiff_path)
         os.remove(temp_tiff_path_reprojected)
 
