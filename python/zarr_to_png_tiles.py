@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 from datetime import datetime, timedelta
 
@@ -9,6 +10,7 @@ from osgeo import gdal, osr
 from tqdm import tqdm
 
 CONFIG_FILE_NAME = 'metadata.json'
+EMPTY_TILE_FILE_NAME = 'empty.png'
 NEGATIVE_ANOMALY_COLOR = [204, 0, 0, 255]
 NO_ANOMALY_COLOR = [128, 128, 128, 255]
 POSITIVE_ANOMALY_COLOR = [0, 0, 204, 255]
@@ -136,6 +138,17 @@ def create_json_file(output_folder, **kwargs):
         json.dump(kwargs, f, default=str) # default=str is used to encode dates as simple strings
 
 
+def copy_empty_png(output_folder):
+    """
+    Copies empty PNG file from the current directory
+
+    :param output_folder: The folder to copy the empty PNG file to.
+    """
+    script_path = os.path.abspath(sys.argv[0])
+    script_dir = os.path.dirname(script_path)
+    shutil.copy(os.path.join(script_dir, EMPTY_TILE_FILE_NAME), output_folder)
+
+
 def safe_get(lst, index):
     """
     Safely gets an element from a list.
@@ -201,6 +214,8 @@ def main():
                      zoom_levels=parse_zoom_levels(zoom_levels),
                      negative_anomaly_color=NEGATIVE_ANOMALY_COLOR, no_anomaly_color=NO_ANOMALY_COLOR,
                      positive_anomaly_color=POSITIVE_ANOMALY_COLOR, no_data_color=NO_DATA_COLOR)
+
+    copy_empty_png(output_folder)
 
     # Reading parameters from attributes of the Zarr format.
     zarr_attrs = zarr_dataset.attrs
