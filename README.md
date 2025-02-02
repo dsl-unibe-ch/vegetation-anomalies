@@ -43,16 +43,12 @@ Go to the `python` directory of the project and install the needed requirements 
 
 ## Conversion from zarr to XYZ Tiles
 
-`python zar_to_png_tiles.py <zarr_folder> <output_folder> <zoom_levels> <processes> [<start_date_index>]`
+`python zar_to_png_tiles.py <zarr_folder> <output_folder> <zoom_levels> <processes>`
 
 Where zoom_levels should be in the format: `<from>-<to>`, where from and to are integers and from <= to. 
 A typical value would be "0-13".
 
 processes indicates the number of parallel processes to use for tiling to speed up the computation.
-
-The optional start_date_index (0-based) parameter indicates from which date to start. 
-By default, it is set to 0, which means to start from the beginning. This parameter is useful to continue interrupted 
-tiles generation.
 
 # Running nginx Tiles Server
 
