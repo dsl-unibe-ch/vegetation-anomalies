@@ -127,15 +127,55 @@ def compute_transform(x_values, y_values):
     return [x_min, pixel_width, 0, y_max, 0, -pixel_height]
 
 
+def merge_values(existing_data, new_data):
+    """
+    Merges new_data into existing_data:
+    - Updates non-list values.
+    - Adds unique values to lists.
+    - Sorts the list after the update.
+
+    :param existing_data: the map to be updated.
+    :param new_data: the map to be merged.
+    """
+    for key, value in new_data.items():
+        if key in existing_data:
+            if isinstance(existing_data[key], list) and isinstance(value, list):
+                # Merge lists while keeping existing values
+                existing_data[key] = list(set(existing_data[key] + value))
+                existing_data[key].sort()
+            else:
+                # Overwrite non-list values
+                existing_data[key] = value
+        else:
+            # Add new key-value pair
+            existing_data[key] = value
+    return existing_data
+
+
 def create_json_file(output_folder, **kwargs):
     """
-    Creates a JSON file in a folder with the specified map of values.
+    Creates or updates a JSON file in a folder with the specified map of values.
 
-    :param output_folder: the folder to create the file at.
-    :param kwargs: Keyword arguments to be dumped to the config JSON file.
+    :param output_folder: the folder to create/update the file at.
+    :param kwargs: Keyword arguments to be merged with the config JSON file.
     """
-    with open(output_folder + '/' + CONFIG_FILE_NAME, 'w', encoding='utf-8') as f:
-        json.dump(kwargs, f, default=str) # default=str is used to encode dates as simple strings
+    file_path = os.path.join(output_folder, CONFIG_FILE_NAME)
+    existing_data = {}
+
+    # Read existing JSON file if it exists
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            existing_data = {}
+
+    # Merge values
+    merged_data = merge_values(existing_data, kwargs)
+
+    # Write the updated dictionary back to the JSON file
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(merged_data, f, default=str)
 
 
 def copy_empty_png(output_folder):
@@ -177,19 +217,51 @@ def parse_zoom_levels(zoom_levels):
     return zoom_levels_list
 
 
+def process_date(start_date, date_index, zarr_dataset, colors_lookup_table, transform):
+    zarr_attrs = zarr_dataset.attrs
+    zarr_crs = zarr_attrs['crs']
+    output_folder = sys.argv[2]
+    zoom_levels = sys.argv[3]
+    processes = int(sys.argv[4])
+    time_values = zarr_dataset['time'][:]
+
+    date = (start_date + timedelta(days=time_values[date_index].item())).strftime("%Y%m%d")
+
+    # Read the 2D array for the current timestep
+    data = zarr_dataset['data'][date_index, :, :]
+
+    # Create temporary GeoTIFF as an intermediary step
+    temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
+    temp_tiff_path_reprojected = temp_tiff_path.replace(".tif", "_reprojected.tif")
+    create_tiff(data, temp_tiff_path, colors_lookup_table, transform, zarr_crs)
+    reproject_riff(temp_tiff_path, temp_tiff_path_reprojected, WEB_MERCATOR_CRS)
+
+    # Use gdal2tiles to generate tiles from the temporary GeoTIFF
+    tile_output_dir = os.path.join(output_folder, date)
+    os.makedirs(tile_output_dir, exist_ok=True)
+    os.system(
+        f'gdal2tiles.py -e -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {temp_tiff_path_reprojected} {tile_output_dir}')
+
+    # Remove the temporary GeoTIFFs
+    os.remove(temp_tiff_path)
+    os.remove(temp_tiff_path_reprojected)
+
+
 def main():
     """
     Application entry point.
     """
 
     if len(sys.argv) < 5:
-        print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes>")
+        print(f"Usage: python {sys.argv[0]} <zarr_folder> <output_folder> <zoom_levels> <processes> [<fixed_date_index>]")
         sys.exit(1)
 
     zarr_folder = sys.argv[1]
     output_folder = sys.argv[2]
     zoom_levels = sys.argv[3]
-    processes = int(sys.argv[4])
+    int(sys.argv[4]) # Just to check early that the value is an integer.
+    fixed_date_index_raw = safe_get(sys.argv, 5)
+    fixed_date_index = int(fixed_date_index_raw or 0)
 
     # Set PROJ_LIB dynamically based on Conda installation
     conda_prefix = os.environ.get('CONDA_PREFIX')
@@ -218,7 +290,6 @@ def main():
 
     # Reading parameters from attributes of the Zarr format.
     zarr_attrs = zarr_dataset.attrs
-    zarr_crs = zarr_attrs['crs']
     missing_id = int(zarr_attrs['missing_id'])
     negative_anomaly_id = int(zarr_attrs['negative_anomaly_id'])
     normal_id = int(zarr_attrs['normal_id'])
@@ -227,27 +298,11 @@ def main():
     colors_lookup_table = get_colors_lookup_table(missing_id, negative_anomaly_id, normal_id, positive_anomaly_id)
 
     # Generate tiles with GDAL
-    for t in tqdm(range(zarr_dataset['data'].shape[0])):
-        date = (start_date + timedelta(days=time_values[t].item())).strftime("%Y%m%d")
-
-        # Read the 2D array for the current timestep
-        data = zarr_dataset['data'][t, :, :]
-
-        # Create temporary GeoTIFF as an intermediary step
-        temp_tiff_path = os.path.join(output_folder, f"temp_{date}.tif")
-        temp_tiff_path_reprojected = temp_tiff_path.replace(".tif", "_reprojected.tif")
-
-        create_tiff(data, temp_tiff_path, colors_lookup_table, transform, zarr_crs)
-        reproject_riff(temp_tiff_path, temp_tiff_path_reprojected, WEB_MERCATOR_CRS)
-
-        # Use gdal2tiles to generate tiles from the temporary GeoTIFF
-        tile_output_dir = os.path.join(output_folder, date)
-        os.makedirs(tile_output_dir, exist_ok=True)
-        os.system(f'gdal2tiles.py -e -s {WEB_MERCATOR_CRS} -z {zoom_levels} -w none --processes={processes} --xyz -x -r near {temp_tiff_path_reprojected} {tile_output_dir}')
-
-        # Remove the temporary GeoTIFFs
-        os.remove(temp_tiff_path)
-        os.remove(temp_tiff_path_reprojected)
+    if fixed_date_index_raw is None:
+        for date_index in tqdm(range(fixed_date_index, zarr_dataset['data'].shape[0])):
+            process_date(start_date, date_index, zarr_dataset, colors_lookup_table, transform)
+    else:
+        process_date(start_date, fixed_date_index, zarr_dataset, colors_lookup_table, transform)
 
     print("PNG image pyramids generated successfully.")
 

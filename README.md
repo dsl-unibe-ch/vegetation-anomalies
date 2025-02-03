@@ -6,12 +6,14 @@
 
 This is the command ro run the generation process.
 
-`python zar_to_png_tiles.py <zarr_folder> <output_folder> <zoom_levels> <processes>`
+`python zar_to_png_tiles.py <zarr_folder> <output_folder> <zoom_levels> <processes> [<fixed_date_index>]`
 
 Where zoom_levels should be in the format: `<from>-<to>`, where from and to are integers and from <= to.
 A typical value would be "0-13".
 
 processes indicates the number of parallel processes to use for tiling to speed up the computation.
+
+When the optional fixed_date_index is specified, only the date with the specified index in zarr (0-based) is processed.  
 
 ### Conversion from zarr to XYZ Tiles Using UBELIX
 
