@@ -15,11 +15,11 @@ processes indicates the number of parallel processes to use for tiling to speed 
 
 ### Conversion from zarr to XYZ Tiles Using UBELIX
 
-After SSH login at submit.unibe.ch this is the command can be used to schedule a job for execution.
+After SSH login at submit.unibe.ch this is the command that can be used to schedule a job for execution.
 
 `sbatch zarr_to_png_tiles.sh`
 
-Once the VM is allocated successfully, the console output of the job can be found at slurm-<job_id>.out, where job_id 
+Once the computational resource is allocated successfully, the console output of the job can be found at slurm-<job_id>.out, where job_id 
 is shown by the previous command.
 
 At the link https://hpc-unibe-ch.github.io/, there is more information about how to use UBELIX.
@@ -34,6 +34,8 @@ Make sure that the main config file of nginx, nginx.conf (typically located at /
 The web application files should be put at /var/www/<web_application_name>. They are produced by the following command:
 
 `npm run build`
+
+If npm is not installed, install it.
 
 This will create the build folder in the root folder of the project. Before running the command, make sure that the 
 .env.production file has the parameter REACT_APP_ANOMALIES_MAPS_API_URL, which points to the web URL with the tiles.
@@ -61,7 +63,7 @@ To activate Miniconda in the current shell use the following command:
 
 `source ~/miniconda3/bin/activate`
 
-To deactivate it run the following command:
+To deactivate it run
 
 `conda deactivate`
 
@@ -81,23 +83,23 @@ Go to the `python` directory of the project and install the needed requirements 
 
 To be able to develop with nginx locally a docker image can be used.
 
-To install docker and a required plugin run
+To install docker and the required plugin run
 
 `sudo apt install docker.io docker-buildx`
 
 ### Preparatory steps
 
-Look up is your container is running
+Look up if your container is running
 
 `docker ps`
 
-If it is the case stop the existing container with the command
+If it is the case, stop the existing container with the command
 
 `docker stop <conatiner name>`
 
 ### Building Image
 
-If needed the image can be built from the Dockerfile recipe:
+If needed, the image can be built from the Dockerfile recipe:
 
 `docker build docker/tiles_server --tag tiles-server`
 
